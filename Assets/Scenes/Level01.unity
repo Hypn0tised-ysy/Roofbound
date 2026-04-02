@@ -900,6 +900,55 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8418046885318228340, guid: b515dd323fd5c4741b64f998ca8ae35a, type: 3}
   m_PrefabInstance: {fileID: 1770694140}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1828780621
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1828780623}
+  - component: {fileID: 1828780622}
+  m_Layer: 0
+  m_Name: TruckSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1828780622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828780621}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12724ca657bd6e0418a57df9796d7b79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  truckPrefab: {fileID: 4469769438663934588, guid: a3f24ba57acd62640a5f770046f378fe, type: 3}
+  truckCount: 7
+  startZ: -10
+  spacing: 10
+  spawnY: 0.4
+--- !u!4 &1828780623
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828780621}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.18488026, y: -4.3140135, z: 4.256549}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 3
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1915374216
 PrefabInstance:
   m_ObjectHideFlags: 0
