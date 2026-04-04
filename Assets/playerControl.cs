@@ -37,7 +37,7 @@ public class playerControl : MonoBehaviour
     [Header("镜头/朝向参数")]
     [Tooltip("鼠标水平/垂直位移影响视角旋转速度（无需按住鼠标键）。")]
     [SerializeField] private float mouseLookSensitivity = 0.15f;
-    [Tooltip("用于俯仰的相机挂点（例如 CameraPivot）。为空则不会应用俯仰。")]
+    [Tooltip("用于俯仰的相机挂点（例如 Camera）。为空则不会应用俯仰。")]
     [SerializeField] private Transform lookTarget;
     [Tooltip("俯仰角最小值（向下）。")]
     [SerializeField] private float minPitch = -75f;
@@ -165,16 +165,38 @@ public class playerControl : MonoBehaviour
         lookAction.Disable();
     }
 
-    /// <summary>
-    /// Update（逐帧）负责：
-    /// - 刷新地面状态与 canJump
-    /// - 维护冲刺持续/冷却计时
-    /// - 捕捉“本帧按下跳跃键”事件
-    /// </summary>
-    private void Update()
+    private bool canSprint()
     {
-        UpdateLookDirectionFromMouse();
+        Vector2 input = moveAction.ReadValue<Vector2>();
+        return isGrounded
+            && sprintCooldownTimer <= 0f
+            && sprintTimer <= 0f
+            && input.y > sprintForwardThreshold;
+    }
 
+    private void update_sprint_status()
+    {
+        // 维护冲刺持续与冷却计时。
+        if (sprintTimer > 0f)
+        {
+            sprintTimer -= Time.deltaTime;
+        }
+        if (sprintCooldownTimer > 0f)
+        {
+            sprintCooldownTimer -= Time.deltaTime;
+        }
+
+        // 冲刺触发条件：
+        // 1) 按住 Shift；2) 当前接地（空中不可冲刺）；3) 不在冷却；4) 不在持续中；5) 前进输入大于阈值。
+        if (canSprint() && sprintAction.IsPressed())
+        {
+            sprintTimer = sprintDuration;
+            sprintCooldownTimer = sprintCooldown;
+        }
+    }
+
+    private void update_jump_status()
+    {
         isGrounded = CheckGrounded();
 
         // 只要稳定接地，就允许下一次跳跃，避免开局或落地后无法起跳。
@@ -190,37 +212,27 @@ public class playerControl : MonoBehaviour
         }
         wasGrounded = isGrounded;
 
-        // 维护冲刺持续与冷却计时。
-        if (sprintTimer > 0f)
-        {
-            sprintTimer -= Time.deltaTime;
-        }
-        if (sprintCooldownTimer > 0f)
-        {
-            sprintCooldownTimer -= Time.deltaTime;
-        }
-
-        // 冲刺触发条件：
-        // 1) 按住 Shift；2) 当前接地（空中不可冲刺）；3) 不在冷却；4) 不在持续中；5) 前进输入大于阈值。
-        Vector2 input = moveAction.ReadValue<Vector2>();
-        bool canStartSprint = isGrounded
-            && sprintCooldownTimer <= 0f
-            && sprintTimer <= 0f
-            && input.y > sprintForwardThreshold
-            && sprintAction.IsPressed();
-
-        if (canStartSprint)
-        {
-            sprintTimer = sprintDuration;
-            sprintCooldownTimer = sprintCooldown;
-        }
-
         // WasPressedThisFrame 用于“按下瞬间”触发，避免长按重复入队。
         if (canJump && jumpAction.WasPressedThisFrame())
         {
             jumpQueued = true;
             canJump = false;
         }
+
+    }
+
+    /// <summary>
+    /// Update（逐帧）负责：
+    /// - 刷新地面状态与 canJump
+    /// - 维护冲刺持续/冷却计时
+    /// - 捕捉“本帧按下跳跃键”事件
+    /// </summary>
+    private void Update()
+    {
+        UpdateLookDirectionFromMouse();
+
+        update_jump_status();
+        update_sprint_status();
     }
 
     /// <summary>
@@ -326,21 +338,21 @@ public class playerControl : MonoBehaviour
 
     /// <summary>
     /// 确保相机挂点与 Camera 组件存在：
-    /// - 若未指定 lookTarget，自动创建子物体 CameraPivot。
+    /// - 若未指定 lookTarget，自动创建子物体 Camera。
     /// - 在 lookTarget 上获取 Camera；若不存在则自动添加。
     /// </summary>
     private void EnsureCameraSetup()
     {
         if (lookTarget == null)
         {
-            Transform existingPivot = transform.Find("CameraPivot");
+            Transform existingPivot = transform.Find("Camera");
             if (existingPivot != null)
             {
                 lookTarget = existingPivot;
             }
             else
             {
-                GameObject pivot = new GameObject("CameraPivot");
+                GameObject pivot = new GameObject("Camera");
                 lookTarget = pivot.transform;
                 lookTarget.SetParent(transform, false);
                 lookTarget.localPosition = Vector3.zero;
