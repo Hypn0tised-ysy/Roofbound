@@ -1,0 +1,12 @@
+{
+	"speed": 5.0,
+	"destroyZ": 120.0,
+	"mass": 1.0,
+	"drag": 0.0,
+	"angularDrag": 0.05,
+	"useGravity": true,
+	"isKinematic": false,
+	"interpolation": 0,
+	"collisionDetection": 0,
+	"constraints": 0
+}
