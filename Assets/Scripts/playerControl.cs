@@ -320,6 +320,9 @@ public class playerControl : MonoBehaviour
         if (jumpQueued)
         {
             jumpQueued = false;
+
+            // 起跳瞬间锁存平台速度，保证离地后稳定继承。
+            inheritedPlatformVelocity = platformVelocity;
             verticalVelocity = jumpSpeed;
         }
 
@@ -366,10 +369,16 @@ public class playerControl : MonoBehaviour
 
     private void RefreshCurrentPlatform()
     {
-        if (!isGrounded || detectedPlatformThisFrame == null)
+        // 离地时才清空平台引用；接地但本帧无回调时保留上帧平台，避免速度抖动。
+        if (!isGrounded)
         {
             currentPlatform = null;
             platformVelocity = Vector3.zero;
+            return;
+        }
+
+        if (detectedPlatformThisFrame == null)
+        {
             return;
         }
 
