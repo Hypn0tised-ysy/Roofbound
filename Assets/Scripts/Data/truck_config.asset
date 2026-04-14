@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8b78618ca932b44893443f07b3eb787, type: 3}
+  m_Name: truck_config
+  m_EditorClassIdentifier: 
+  speed: 5
+  mass: 1
+  drag: 0
+  angularDrag: 0.05
+  useGravity: 1
+  isKinematic: 0
+  interpolation: 0
+  collisionDetection: 0
+  constraints: 0
