@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 // TODO: 后续可将 canJump 迁移到状态机(FSM)。
 // TODO: 后续可将输入动作迁移到 InputActionAsset。
@@ -65,65 +64,41 @@ public class playerControl : MonoBehaviour
     // CharacterController 用于移动与碰撞。
     private CharacterController controller;
 
-    // Move: 读取二维方向输入（x=左右, y=前后）。
-    private InputAction moveAction;
+    // 输入读取模块。
+    private PlayerInputReader inputReader;
 
-    // Jump: 读取跳跃按键（空格）。
-    private InputAction jumpAction;
-
-    // Sprint: 读取冲刺按键（左 Shift）。
-    private InputAction sprintAction;
-
-    // Look: 读取鼠标位移（delta）。
-    private InputAction lookAction;
-
-    // 是否在当前物理帧执行跳跃。用于把 Update 的按键触发同步到 FixedUpdate 里处理。
-    private bool jumpQueued;
+    // 当前帧输入快照。
+    private PlayerInputSnapshot inputSnapshot;
 
     // 当前是否接触地面。
     private bool isGrounded;
 
-    // 按文档语义：是否允许跳跃。落地瞬间刷新 true，按下空格后置 false。
-    private bool canJump;
-
-    // 上一帧是否接地，用于检测“空中 -> 接地”的边沿。
-    private bool wasGrounded;
-
-    // 当前鼠标朝向对应的 forward，始终与 FixedUp 垂直。
-    private Vector3 planarForward;
-
-    // 当前俯仰角（单位：度）。
-    private float pitchAngle;
-
-    // 冲刺剩余持续时间。
-    private float sprintTimer;
-
-    // 冲刺冷却剩余时间。
-    private float sprintCooldownTimer;
-
     // 当前竖直速度（跳跃/重力均在此累计）。
     private float verticalVelocity;
 
-    // 当前脚下平台。
-    private Transform currentPlatform;
-
-    // 上一帧平台位置，用于估算平台速度。
-    private Vector3 lastPlatformPosition;
-
-    // 当前平台速度（世界空间）。
-    private Vector3 platformVelocity;
-
-    // 角色离地瞬间继承的平台速度（空中持续使用）。
-    private Vector3 inheritedPlatformVelocity;
+    // 平台速度跟踪模块。
+    private PlatformMotionTracker platformMotion;
 
     // 角色相对地面的水平速度（由 WASD/冲刺更新，无输入时保持）。
     private Vector3 relativeHorizontalVelocity;
 
-    // 本帧 Move 过程中检测到的脚下平台。
-    private Transform detectedPlatformThisFrame;
+    // 跳跃/冲刺运行时。
+    private PlayerLocomotionRuntime locomotionRuntime;
 
-    // 由脚本管理的相机组件。
-    private Camera controlledCamera;
+    // 相机与朝向运行时。
+    private PlayerLookController lookController;
+
+    // 移动求解运行时。
+    private PlayerMovementSolver movementSolver;
+
+    // 角色移动状态机（保存当前状态与切换事件）。
+    private FiniteStateMachine<PlayerLocomotionState> locomotionFsm;
+
+    // 状态驱动协调器（本阶段默认空节点，后续技能逻辑可按状态挂接）。
+    private PlayerLocomotionStateDriver locomotionStateDriver;
+
+    // 暴露给 Inspector/调试窗口观察当前状态。
+    [SerializeField] private PlayerLocomotionState debugLocomotionState;
 
     /// <summary>
     /// Awake 在脚本生命周期中最早执行：
@@ -137,40 +112,26 @@ public class playerControl : MonoBehaviour
 
         ApplyConfigAsset();
 
-        // Move 动作：使用 2DVector 复合绑定，将 WASD 映射到一个 Vector2。
-        moveAction = new InputAction(name: "Move", type: InputActionType.Value);
-        moveAction.AddCompositeBinding("2DVector")
-            .With("Up", "<Keyboard>/w")
-            .With("Down", "<Keyboard>/s")
-            .With("Left", "<Keyboard>/a")
-            .With("Right", "<Keyboard>/d");
+        inputReader = new PlayerInputReader();
+        inputReader.InitializeDefaultBindings();
 
-        // Jump 动作：空格键触发。
-        jumpAction = new InputAction(name: "Jump", type: InputActionType.Button, binding: "<Keyboard>/space");
+        platformMotion = new PlatformMotionTracker();
 
-        // Sprint 动作：按住左 Shift 冲刺。
-        sprintAction = new InputAction(name: "Sprint", type: InputActionType.Button, binding: "<Keyboard>/leftShift");
+        lookController = new PlayerLookController(transform, FixedUp);
+        lookController.Initialize(lookTarget, Vector3.forward, 0f);
+        lookTarget = lookController.LookTarget;
 
-        // Look 动作：鼠标位移。
-        lookAction = new InputAction(name: "Look", type: InputActionType.Value, binding: "<Mouse>/delta");
+        movementSolver = new PlayerMovementSolver(controller, platformMotion, lookController, FixedUp, CheckGrounded);
 
-        // 按文档要求：初始时强制角色朝向世界 Z 轴正方向。
-        planarForward = Vector3.forward;
-        pitchAngle = 0f;
-
-        // 自动确保相机挂点与 Camera 组件可用。
-        EnsureCameraSetup();
+        locomotionRuntime = new PlayerLocomotionRuntime();
 
         // 初始化跳跃状态：若开局即接地，则允许跳跃。
         isGrounded = CheckGrounded();
-        wasGrounded = isGrounded;
-        canJump = isGrounded;
         verticalVelocity = isGrounded ? groundedVerticalVelocity : 0f;
         relativeHorizontalVelocity = Vector3.zero;
-        inheritedPlatformVelocity = Vector3.zero;
+        locomotionRuntime.Initialize(isGrounded);
 
-        // 应用一次初始朝向（玩家朝向 +Z，相机俯仰归零）。
-        ApplyLookRotation();
+        InitializeLocomotionStateMachine();
     }
 
     /// <summary>
@@ -178,74 +139,12 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void OnEnable()
     {
-        moveAction.Enable();
-        jumpAction.Enable();
-        sprintAction.Enable();
-        lookAction.Enable();
+        inputReader?.Enable();
     }
 
     private void OnDisable()
     {
-        moveAction.Disable();
-        jumpAction.Disable();
-        sprintAction.Disable();
-        lookAction.Disable();
-    }
-
-    private bool canSprint()
-    {
-        Vector2 input = moveAction.ReadValue<Vector2>();
-        return isGrounded
-            && sprintCooldownTimer <= 0f
-            && sprintTimer <= 0f
-            && input.y > sprintForwardThreshold;
-    }
-
-    private void update_sprint_status()
-    {
-        // 维护冲刺持续与冷却计时。
-        if (sprintTimer > 0f)
-        {
-            sprintTimer -= Time.deltaTime;
-        }
-        if (sprintCooldownTimer > 0f)
-        {
-            sprintCooldownTimer -= Time.deltaTime;
-        }
-
-        // 冲刺触发条件：
-        // 1) 按住 Shift；2) 当前接地（空中不可冲刺）；3) 不在冷却；4) 不在持续中；5) 前进输入大于阈值。
-        if (canSprint() && sprintAction.IsPressed())
-        {
-            sprintTimer = sprintDuration;
-            sprintCooldownTimer = sprintCooldown;
-        }
-    }
-
-    private void update_jump_status()
-    {
-        isGrounded = CheckGrounded();
-
-        // 只要稳定接地，就允许下一次跳跃，避免开局或落地后无法起跳。
-        if (isGrounded && verticalVelocity <= 0.01f)
-        {
-            canJump = true;
-        }
-
-        // 仅在“空中 -> 接地”边沿刷新跳跃资格。
-        if (isGrounded && !wasGrounded)
-        {
-            canJump = true;
-        }
-        wasGrounded = isGrounded;
-
-        // WasPressedThisFrame 用于“按下瞬间”触发，避免长按重复入队。
-        if (canJump && jumpAction.WasPressedThisFrame())
-        {
-            jumpQueued = true;
-            canJump = false;
-        }
-
+        inputReader?.Disable();
     }
 
     /// <summary>
@@ -257,12 +156,90 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        UpdateLookDirectionFromMouse();
+        inputSnapshot = inputReader.ReadSnapshot();
 
-        update_jump_status();
-        update_sprint_status();
+        lookController.UpdateFromMouse(inputSnapshot.Look, mouseLookSensitivity, minPitch, maxPitch);
+
+        isGrounded = CheckGrounded();
+        locomotionRuntime.UpdateBeforeMovement(
+            isGrounded,
+            verticalVelocity,
+            inputSnapshot.JumpPressedThisFrame,
+            inputSnapshot.Move.y,
+            inputSnapshot.SprintPressed,
+            sprintForwardThreshold,
+            sprintDuration,
+            sprintCooldown,
+            Time.deltaTime);
 
         UpdateMovement();
+        UpdateLocomotionStateMachine();
+
+        // 状态节点逐帧入口：本阶段默认空节点，不影响现有行为。
+        locomotionStateDriver?.Tick(BuildLocomotionFrameContext(), Time.deltaTime);
+    }
+
+    private void InitializeLocomotionStateMachine()
+    {
+        locomotionFsm = new FiniteStateMachine<PlayerLocomotionState>();
+        locomotionFsm.OnStateChanged += OnLocomotionStateChanged;
+
+        PlayerLocomotionState initialState = ResolveLocomotionState();
+        locomotionFsm.Initialize(initialState);
+
+        locomotionStateDriver = PlayerLocomotionStateDriver.CreateDefaultNoopDriver();
+        locomotionStateDriver.Initialize(initialState, BuildLocomotionFrameContext());
+
+        debugLocomotionState = initialState;
+    }
+
+    private void UpdateLocomotionStateMachine()
+    {
+        if (locomotionFsm == null)
+        {
+            return;
+        }
+
+        PlayerLocomotionState nextState = ResolveLocomotionState();
+        locomotionFsm.ChangeState(nextState);
+        debugLocomotionState = locomotionFsm.CurrentState;
+    }
+
+    private PlayerLocomotionState ResolveLocomotionState()
+    {
+        if (!isGrounded)
+        {
+            return PlayerLocomotionState.Airborne;
+        }
+
+        // 冲刺结束后的短窗口统一归类为 PostSprint。
+        if (locomotionRuntime.IsSprinting() || locomotionRuntime.SprintCooldownTimer > 0f)
+        {
+            return PlayerLocomotionState.PostSprint;
+        }
+
+        if (platformMotion != null && platformMotion.CurrentPlatform != null)
+        {
+            return PlayerLocomotionState.OnPlatform;
+        }
+
+        return PlayerLocomotionState.Grounded;
+    }
+
+    private void OnLocomotionStateChanged(PlayerLocomotionState previousState, PlayerLocomotionState nextState)
+    {
+        locomotionStateDriver?.ChangeState(nextState, BuildLocomotionFrameContext());
+    }
+
+    private PlayerLocomotionFrameContext BuildLocomotionFrameContext()
+    {
+        return new PlayerLocomotionFrameContext
+        {
+            IsGrounded = isGrounded,
+            IsSprinting = locomotionRuntime != null && locomotionRuntime.IsSprinting(),
+            HasPlatform = platformMotion != null && platformMotion.CurrentPlatform != null,
+            MoveInput = inputSnapshot.Move,
+        };
     }
 
     /// <summary>
@@ -273,130 +250,23 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void UpdateMovement()
     {
-        bool wasGroundedBeforeMove = isGrounded;
-
-        // 重置本帧检测结果，等待 OnControllerColliderHit 更新。
-        detectedPlatformThisFrame = null;
-
-        // 若角色稳定站在平台上，则将平台速度叠加到角色最终位移中。
-        UpdatePlatformVelocity();
-
-        // 读取 WASD 合成方向。
-        Vector2 input = moveAction.ReadValue<Vector2>();
-
-        // 按文档公式：
-        // right = forward × up
-        // W 对应方向：moveForward = up × right
-        Vector3 right = Vector3.Cross(planarForward, FixedUp).normalized;
-        Vector3 moveForward = Vector3.Cross(FixedUp, right).normalized;
-
-        // 保持 WASD 直觉：W/S 使用 moveForward，A/D 使用 -right。
-        Vector3 rawMove = moveForward * input.y - right * input.x;
-        Vector3 moveDir = rawMove.sqrMagnitude > 0.0001f ? rawMove.normalized : Vector3.zero;
-
-        // 处于冲刺持续窗口时，使用冲刺倍率。
-        bool isSprinting = sprintTimer > 0f;
-        float finalMoveSpeed = isSprinting ? speed * sprintMultiplier : speed;
-
-        // 速度机制：
-        // 1) 有输入时，relative speed 由输入确定；
-        // 2) 地面无输入时，relative speed = 0（仅继承平台速度）；
-        // 3) 空中无输入时，relative speed 保持离地时值。
-        if (moveDir.sqrMagnitude > 0.0001f)
-        {
-            relativeHorizontalVelocity = moveDir * finalMoveSpeed;
-        }
-        else if (isGrounded)
-        {
-            relativeHorizontalVelocity = Vector3.zero;
-        }
-
-        if (isGrounded && verticalVelocity < 0f)
-        {
-            verticalVelocity = groundedVerticalVelocity;
-        }
-
-        // 跳跃触发：直接写入起跳竖直速度。
-        if (jumpQueued)
-        {
-            jumpQueued = false;
-
-            // 起跳瞬间锁存平台速度，保证离地后稳定继承。
-            inheritedPlatformVelocity = platformVelocity;
-            verticalVelocity = jumpSpeed;
-        }
-
-        verticalVelocity -= gravityAcceleration * Time.deltaTime;
-
-        Vector3 effectivePlatformVelocity = isGrounded ? platformVelocity : inheritedPlatformVelocity;
-        Vector3 frameMotion = (relativeHorizontalVelocity + effectivePlatformVelocity) * Time.deltaTime
-            + FixedUp * (verticalVelocity * Time.deltaTime);
-
-        CollisionFlags flags = controller.Move(frameMotion);
-        if ((flags & CollisionFlags.Below) != 0 && verticalVelocity < groundedVerticalVelocity)
-        {
-            verticalVelocity = groundedVerticalVelocity;
-        }
-
-        isGrounded = CheckGrounded();
-
-        // 若本帧从接地变为空中，则锁存离地瞬间的平台速度，供空中继承。
-        if (wasGroundedBeforeMove && !isGrounded)
-        {
-            inheritedPlatformVelocity = platformVelocity;
-        }
-
-        // Move 后根据碰撞信息更新“当前脚下平台”。
-        RefreshCurrentPlatform();
-    }
-
-    private void UpdatePlatformVelocity()
-    {
-        if (!isGrounded || currentPlatform == null)
-        {
-            platformVelocity = Vector3.zero;
-            return;
-        }
-
-        float dt = Mathf.Max(Time.deltaTime, 0.0001f);
-        Vector3 currentPosition = currentPlatform.position;
-        platformVelocity = (currentPosition - lastPlatformPosition) / dt;
-        lastPlatformPosition = currentPosition;
-
-        // 接地期间持续刷新，保证下一次离地时有最新可继承速度。
-        inheritedPlatformVelocity = platformVelocity;
-    }
-
-    private void RefreshCurrentPlatform()
-    {
-        // 离地时才清空平台引用；接地但本帧无回调时保留上帧平台，避免速度抖动。
-        if (!isGrounded)
-        {
-            currentPlatform = null;
-            platformVelocity = Vector3.zero;
-            return;
-        }
-
-        if (detectedPlatformThisFrame == null)
-        {
-            return;
-        }
-
-        if (currentPlatform != detectedPlatformThisFrame)
-        {
-            currentPlatform = detectedPlatformThisFrame;
-            lastPlatformPosition = currentPlatform.position;
-            platformVelocity = Vector3.zero;
-        }
+        movementSolver.Step(
+            inputSnapshot,
+            locomotionRuntime,
+            speed,
+            sprintMultiplier,
+            gravityAcceleration,
+            groundedVerticalVelocity,
+            jumpSpeed,
+            Time.deltaTime,
+            ref isGrounded,
+            ref verticalVelocity,
+            ref relativeHorizontalVelocity);
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        // 仅在脚下碰撞时记录平台，避免侧碰墙体干扰平台判定。
-        if (Vector3.Dot(hit.normal, FixedUp) > 0.5f)
-        {
-            detectedPlatformThisFrame = hit.transform;
-        }
+        platformMotion.RegisterGroundHit(hit, FixedUp);
     }
 
     /// <summary>
@@ -454,94 +324,6 @@ public class playerControl : MonoBehaviour
     }
 
     /// <summary>
-    /// 每帧根据鼠标位移更新视角：
-    /// - up 固定为 (0,1,0)
-    /// - 水平位移控制 yaw（影响移动前进方向）
-    /// - 垂直位移控制 pitch（只影响视角俯仰）
-    /// </summary>
-    private void UpdateLookDirectionFromMouse()
-    {
-        Vector2 mouseDelta = lookAction.ReadValue<Vector2>();
-        float yawDelta = mouseDelta.x * mouseLookSensitivity;
-        float pitchDelta = -mouseDelta.y * mouseLookSensitivity;
-
-        if (Mathf.Abs(yawDelta) <= Mathf.Epsilon && Mathf.Abs(pitchDelta) <= Mathf.Epsilon)
-        {
-            return;
-        }
-
-        // 水平转向：更新平面前进方向。
-        planarForward = Quaternion.AngleAxis(yawDelta, FixedUp) * planarForward;
-        planarForward = Vector3.ProjectOnPlane(planarForward, FixedUp).normalized;
-        if (planarForward.sqrMagnitude < 0.0001f)
-        {
-            planarForward = Vector3.right;
-        }
-
-        // 垂直俯仰：更新并限制 pitch 角度。
-        pitchAngle = Mathf.Clamp(pitchAngle + pitchDelta, minPitch, maxPitch);
-
-        ApplyLookRotation();
-    }
-
-    /// <summary>
-    /// 确保相机挂点与 Camera 组件存在：
-    /// - 若未指定 lookTarget，自动创建子物体 Camera。
-    /// - 在 lookTarget 上获取 Camera；若不存在则自动添加。
-    /// </summary>
-    private void EnsureCameraSetup()
-    {
-        if (lookTarget == null)
-        {
-            Transform existingPivot = transform.Find("Camera");
-            if (existingPivot != null)
-            {
-                lookTarget = existingPivot;
-            }
-            else
-            {
-                GameObject pivot = new GameObject("Camera");
-                lookTarget = pivot.transform;
-                lookTarget.SetParent(transform, false);
-                lookTarget.localPosition = Vector3.zero;
-                lookTarget.localRotation = Quaternion.identity;
-            }
-        }
-
-        controlledCamera = lookTarget.GetComponent<Camera>();
-        if (controlledCamera == null)
-        {
-            controlledCamera = lookTarget.gameObject.AddComponent<Camera>();
-        }
-    }
-
-    /// <summary>
-    /// 应用旋转：
-    /// - 玩家本体只应用 yaw（水平旋转），避免刚体碰撞体发生俯仰导致被物理顶飞。
-    /// - 相机挂点（lookTarget）只应用 pitch（上下俯仰）。
-    /// </summary>
-    private void ApplyLookRotation()
-    {
-        Quaternion yawRotation = Quaternion.LookRotation(planarForward, FixedUp);
-
-        // 玩家本体只做水平旋转。
-        transform.rotation = yawRotation;
-
-        // 俯仰只给相机挂点，避免影响玩家刚体。
-        if (lookTarget != null)
-        {
-            Quaternion pitchLocalRotation = Quaternion.Euler(pitchAngle, 0f, 0f);
-            lookTarget.localRotation = pitchLocalRotation;
-
-            // 显式同步 Camera 旋转：由 yaw(玩家) + pitch(挂点) 组成最终视角。
-            if (controlledCamera != null)
-            {
-                controlledCamera.transform.rotation = yawRotation * pitchLocalRotation;
-            }
-        }
-    }
-
-    /// <summary>
     /// 在 Scene 视图中显示地面检测球和方向辅助线。
     /// </summary>
     private void OnDrawGizmosSelected()
@@ -556,6 +338,7 @@ public class playerControl : MonoBehaviour
         Gizmos.color = Color.cyan;
         Gizmos.DrawLine(transform.position, transform.position + FixedUp * 1.2f);
         Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(transform.position, transform.position + planarForward * 1.2f);
+        Vector3 debugForward = lookController != null ? lookController.PlanarForward : Vector3.forward;
+        Gizmos.DrawLine(transform.position, transform.position + debugForward * 1.2f);
     }
 }
