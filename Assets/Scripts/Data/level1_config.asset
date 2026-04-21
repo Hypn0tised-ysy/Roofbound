@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6256ebc27b89a35438e3a254ffec6232, type: 3}
   m_Name: level1_config
   m_EditorClassIdentifier: 
-  truckPrefab: {fileID: 3526656333118620634, guid: 560773f1243613d42bec8f476ea5936d, type: 3}
+  truckPrefab: {fileID: 4913352986185564498, guid: f5cc60d4f13420944bb59004b3982279, type: 3}
   truckInitialStates: []
   mainCharacterPrefab: {fileID: 778837301594663480, guid: 8a5a3d4cf5507fa44942b939dd0d8b80, type: 3}

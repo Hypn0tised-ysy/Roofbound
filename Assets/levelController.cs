@@ -1,7 +1,10 @@
+using System;
 using UnityEngine;
 
 public class levelController : MonoBehaviour
 {
+    public event Action game_finish;
+
     [Header("关卡配置")]
     [SerializeField] private level1_config configAsset;
 
@@ -20,7 +23,11 @@ public class levelController : MonoBehaviour
     [SerializeField] private float middleRowZ = 0f;
     [SerializeField] private float truckSpawnY = 0f;
 
+    [Header("结束流程")]
+    [SerializeField] private GameObject finishMenuPanel;
+
     private GameObject spawnedMainCharacter;
+    private bool isGameFinished;
 
     private void Start()
     {
@@ -32,6 +39,8 @@ public class levelController : MonoBehaviour
 
     public void InitializeLevel()
     {
+        isGameFinished = false;
+
         if (configAsset == null)
         {
             Debug.LogError("[levelController] 未绑定 level1_config，无法初始化关卡。");
@@ -40,6 +49,38 @@ public class levelController : MonoBehaviour
 
         SpawnTrucks();
         SpawnMainCharacter();
+
+        if (finishMenuPanel != null)
+        {
+            finishMenuPanel.SetActive(false);
+        }
+    }
+
+    public void NotifyPlayerReachedDestination(GameObject player)
+    {
+        if (isGameFinished)
+        {
+            return;
+        }
+
+        isGameFinished = true;
+        TriggerGameFinish(player);
+    }
+
+    private void TriggerGameFinish(GameObject player)
+    {
+        game_finish?.Invoke();
+        Debug.Log($"[levelController] game_finish 触发。player={player.name}");
+
+        // finish_menu 暂未实现，先提供占位加载逻辑。
+        if (finishMenuPanel != null)
+        {
+            finishMenuPanel.SetActive(true);
+        }
+        else
+        {
+            Debug.Log("[levelController] finish_menu 暂未绑定，后续接入 UI 面板或场景加载。");
+        }
     }
 
     private void SpawnTrucks()
