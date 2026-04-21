@@ -35,10 +35,16 @@ public class truck_movement : MonoBehaviour
     {
         Vector3 nextPos = rb.position + Vector3.forward * speed * Time.fixedDeltaTime;
         rb.MovePosition(nextPos);
-        return;
+    }
 
+    public void SetRuntimeSpeed(float runtimeSpeed, bool overrideSpeed)
+    {
+        if (!overrideSpeed)
+        {
+            return;
+        }
 
-
+        speed = Mathf.Max(0f, runtimeSpeed);
     }
 
     private void ApplyConfigAsset()
