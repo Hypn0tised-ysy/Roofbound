@@ -1,18 +1,112 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class levelController : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    [Header("关卡配置")]
+    [SerializeField] private level1_config configAsset;
+
+    [Header("生成点")]
+    [SerializeField] private Transform spawnPoint;
+
+    [Header("初始化")]
+    [SerializeField] private bool initializeOnStart = true;
+    [SerializeField] private Transform truckParent;
+
+    [Header("卡车网格生成")]
+    [SerializeField] private int truckRowCount = 5;
+    [SerializeField] private int truckColumnCount = 10;
+    [SerializeField] private float truckColumnSpacing = 3f;
+    [SerializeField] private float truckRowSpacing = 3f;
+    [SerializeField] private float middleRowZ = 0f;
+    [SerializeField] private float truckSpawnY = 0f;
+
+    private GameObject spawnedMainCharacter;
+
+    private void Start()
     {
-        
+        if (initializeOnStart)
+        {
+            InitializeLevel();
+        }
     }
 
-    // Update is called once per frame
-    void Update()
+    public void InitializeLevel()
     {
-        
+        if (configAsset == null)
+        {
+            Debug.LogError("[levelController] 未绑定 level1_config，无法初始化关卡。");
+            return;
+        }
+
+        SpawnTrucks();
+        SpawnMainCharacter();
+    }
+
+    private void SpawnTrucks()
+    {
+        if (configAsset.truckPrefab == null)
+        {
+            Debug.LogError("[levelController] level1_config 未配置 truckPrefab。");
+            return;
+        }
+
+        if (truckRowCount <= 0 || truckColumnCount <= 0)
+        {
+            Debug.LogWarning("[levelController] 卡车网格行列数非法，不执行生成。");
+            return;
+        }
+
+        float halfWidth = (truckColumnCount - 1) * truckColumnSpacing * 0.5f;
+        Quaternion truckRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+
+        int spawnIndex = 0;
+        for (int row = 0; row < truckRowCount; row++)
+        {
+            // 文档要求中间一排 z=0，其他排按行距向 +z/-z 方向递进。
+            float rowZ = middleRowZ + (row - truckRowCount / 2f) * truckRowSpacing;
+
+            for (int col = 0; col < truckColumnCount; col++)
+            {
+                float x = -halfWidth + col * truckColumnSpacing;
+                Vector3 position = new Vector3(x, truckSpawnY, rowZ);
+
+                GameObject truck = Instantiate(configAsset.truckPrefab, position, truckRotation, truckParent);
+                truck.name = $"Truck_{spawnIndex:D2}";
+                spawnIndex++;
+
+                // 不覆盖速度，保持 truck_movement 从 truck_config 读取默认参数。
+                truck_movement movement = truck.GetComponent<truck_movement>();
+                if (movement != null)
+                {
+                    movement.SetRuntimeSpeed(0f, false);
+                }
+            }
+        }
+    }
+
+    private void SpawnMainCharacter()
+    {
+        if (configAsset.mainCharacterPrefab == null)
+        {
+            Debug.LogError("[levelController] level1_config 未配置 mainCharacterPrefab。");
+            return;
+        }
+
+        Transform anchor = spawnPoint != null ? spawnPoint : transform;
+        if (spawnPoint == null)
+        {
+            Debug.LogWarning("[levelController] 未配置 spawnPoint，回退到 levelController 自身位置生成主角。");
+        }
+
+        if (spawnedMainCharacter != null)
+        {
+            Destroy(spawnedMainCharacter);
+        }
+
+        spawnedMainCharacter = Instantiate(
+            configAsset.mainCharacterPrefab,
+            anchor.position,
+            Quaternion.LookRotation(Vector3.forward, Vector3.up));
+        spawnedMainCharacter.name = "MainCharacter";
     }
 }
