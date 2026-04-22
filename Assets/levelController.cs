@@ -4,6 +4,7 @@ using UnityEngine;
 public class levelController : MonoBehaviour
 {
     public event Action game_finish;
+    public event Action game_dead;
 
     [Header("关卡配置")]
     [SerializeField] private level1_config configAsset;
@@ -28,6 +29,7 @@ public class levelController : MonoBehaviour
 
     private GameObject spawnedMainCharacter;
     private bool isGameFinished;
+    private bool isGameDead;
 
     private void Start()
     {
@@ -40,6 +42,7 @@ public class levelController : MonoBehaviour
     public void InitializeLevel()
     {
         isGameFinished = false;
+        isGameDead = false;
 
         if (configAsset == null)
         {
@@ -58,13 +61,24 @@ public class levelController : MonoBehaviour
 
     public void NotifyPlayerReachedDestination(GameObject player)
     {
-        if (isGameFinished)
+        if (isGameFinished || isGameDead)
         {
             return;
         }
 
         isGameFinished = true;
         TriggerGameFinish(player);
+    }
+
+    public void NotifyPlayerHitGround(GameObject player)
+    {
+        if (isGameFinished || isGameDead)
+        {
+            return;
+        }
+
+        isGameDead = true;
+        TriggerGameDead(player);
     }
 
     private void TriggerGameFinish(GameObject player)
@@ -81,6 +95,13 @@ public class levelController : MonoBehaviour
         {
             Debug.Log("[levelController] finish_menu 暂未绑定，后续接入 UI 面板或场景加载。");
         }
+    }
+
+    private void TriggerGameDead(GameObject player)
+    {
+        game_dead?.Invoke();
+        Debug.Log($"[levelController] game_dead 触发。player={player.name}");
+        Debug.Log("[levelController] dead_menu 暂未实现，当前仅输出调试日志。");
     }
 
     private void SpawnTrucks()

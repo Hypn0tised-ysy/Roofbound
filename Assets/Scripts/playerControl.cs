@@ -91,6 +91,9 @@ public class playerControl : MonoBehaviour
     // 移动求解运行时。
     private PlayerMovementSolver movementSolver;
 
+    // 玩家侧地面命中检测器。
+    private playerHitGround hitGroundHandler;
+
     // 角色移动状态机（保存当前状态与切换事件）。
     private FiniteStateMachine<PlayerLocomotionState> locomotionFsm;
 
@@ -122,6 +125,12 @@ public class playerControl : MonoBehaviour
         lookTarget = lookController.LookTarget;
 
         movementSolver = new PlayerMovementSolver(controller, platformMotion, lookController, FixedUp, CheckGrounded);
+
+        hitGroundHandler = GetComponent<playerHitGround>();
+        if (hitGroundHandler == null)
+        {
+            hitGroundHandler = gameObject.AddComponent<playerHitGround>();
+        }
 
         locomotionRuntime = new PlayerLocomotionRuntime();
 
@@ -267,6 +276,7 @@ public class playerControl : MonoBehaviour
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
         platformMotion.RegisterGroundHit(hit, FixedUp);
+        hitGroundHandler?.TryHandleControllerHit(hit, FixedUp, gameObject);
     }
 
     /// <summary>
