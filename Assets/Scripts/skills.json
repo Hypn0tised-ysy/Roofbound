@@ -1,0 +1,21 @@
+{
+    "movement":[
+        {
+        "name": "Air Dash",
+        "description": "Allows the player to dash through the air, covering a greater distance than a regular jump.",
+        "cooldown": 3
+        },
+        {
+        "name": "Double Jump",
+        "description": "Allows the player to jump again while in the air, providing increased mobility and access to higher areas."
+        }
+    ],
+
+    "utility":[
+        {
+            "name":"Time Slow",
+            "description":"Slows down time for a short duration, allowing the player to react to fast-moving obstacles or enemies.",
+            "cooldown": 10
+        }
+    ]
+}

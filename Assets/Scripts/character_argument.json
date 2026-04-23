@@ -1,0 +1,15 @@
+{
+	"speed": 6.0,
+	"sprintMultiplier": 1.6,
+	"sprintForwardThreshold": 0.1,
+	"sprintDuration": 0.25,
+	"sprintCooldown": 0.8,
+	"mouseLookSensitivity": 0.15,
+	"minPitch": -75.0,
+	"maxPitch": 75.0,
+	"jumpSpeed": 7.0,
+	"groundCheckRadius": 0.2,
+	"gravityAcceleration": 20.0,
+	"groundedVerticalVelocity": -2.0,
+	"groundMask": -1
+}
