@@ -94,6 +94,12 @@ public class playerControl : MonoBehaviour
     // 玩家侧地面命中检测器。
     private playerHitGround hitGroundHandler;
 
+    // 关卡控制器（用于监听死亡事件）。
+    private levelController levelControllerRef;
+
+    // 死亡后锁定输入读取。
+    private bool isInputLockedByDeath;
+
     // 角色移动状态机（保存当前状态与切换事件）。
     private FiniteStateMachine<PlayerLocomotionState> locomotionFsm;
 
@@ -132,11 +138,13 @@ public class playerControl : MonoBehaviour
             hitGroundHandler = gameObject.AddComponent<playerHitGround>();
         }
 
+        levelControllerRef = FindObjectOfType<levelController>();
+
         locomotionRuntime = new PlayerLocomotionRuntime();
 
         // 初始化跳跃状态：若开局即接地，则允许跳跃。
         isGrounded = CheckGrounded();
-        verticalVelocity = isGrounded ? groundedVerticalVelocity : 0f;
+        verticalVelocity = 0f;
         relativeHorizontalVelocity = Vector3.zero;
         locomotionRuntime.Initialize(isGrounded);
 
@@ -149,10 +157,20 @@ public class playerControl : MonoBehaviour
     private void OnEnable()
     {
         inputReader?.Enable();
+
+        if (levelControllerRef != null)
+        {
+            levelControllerRef.game_dead += OnGameDead;
+        }
     }
 
     private void OnDisable()
     {
+        if (levelControllerRef != null)
+        {
+            levelControllerRef.game_dead -= OnGameDead;
+        }
+
         inputReader?.Disable();
     }
 
@@ -165,13 +183,22 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void Update()
     {
+        if (isInputLockedByDeath)
+        {
+            isGrounded = CheckGrounded();
+            UpdateLocomotionStateMachine();
+            locomotionStateDriver?.Tick(BuildLocomotionFrameContext(), Time.deltaTime);
+            return;
+        }
+
         inputSnapshot = inputReader.ReadSnapshot();
 
         lookController.UpdateFromMouse(inputSnapshot.Look, mouseLookSensitivity, minPitch, maxPitch);
 
         isGrounded = CheckGrounded();
+        PlayerLocomotionState preMoveState = ResolveLocomotionState();
         locomotionRuntime.UpdateBeforeMovement(
-            isGrounded,
+            preMoveState,
             verticalVelocity,
             inputSnapshot.JumpPressedThisFrame,
             inputSnapshot.Move.y,
@@ -216,15 +243,14 @@ public class playerControl : MonoBehaviour
 
     private PlayerLocomotionState ResolveLocomotionState()
     {
+        if (isInputLockedByDeath)
+        {
+            return PlayerLocomotionState.Dead;
+        }
+
         if (!isGrounded)
         {
             return PlayerLocomotionState.Airborne;
-        }
-
-        // 冲刺结束后的短窗口统一归类为 PostSprint。
-        if (locomotionRuntime.IsSprinting() || locomotionRuntime.SprintCooldownTimer > 0f)
-        {
-            return PlayerLocomotionState.PostSprint;
         }
 
         if (platformMotion != null && platformMotion.CurrentPlatform != null)
@@ -233,6 +259,12 @@ public class playerControl : MonoBehaviour
         }
 
         return PlayerLocomotionState.Grounded;
+    }
+
+    private void OnGameDead()
+    {
+        isInputLockedByDeath = true;
+        inputSnapshot = default;
     }
 
     private void OnLocomotionStateChanged(PlayerLocomotionState previousState, PlayerLocomotionState nextState)

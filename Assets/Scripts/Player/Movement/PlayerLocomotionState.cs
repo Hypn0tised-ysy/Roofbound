@@ -9,6 +9,7 @@ public enum PlayerLocomotionState
     OnPlatform,
     Airborne,
     PostSprint,
+    Dead,
 }
 
 public struct PlayerLocomotionFrameContext

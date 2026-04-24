@@ -71,6 +71,6 @@ public class playerHitGround : MonoBehaviour
             return target.CompareTag(groundTag);
         }
 
-        return true;
+        return false;
     }
 }
