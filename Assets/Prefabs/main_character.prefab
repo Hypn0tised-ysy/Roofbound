@@ -350,7 +350,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8dadd366e499cf444b6aacf2d460e8e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  configAsset: {fileID: 0}
+  configAsset: {fileID: 11400000, guid: 1c3e1a22a452a5c418144eb5d8c17055, type: 2}
   speed: 6
   sprintMultiplier: 1.6
   sprintForwardThreshold: 0.1
@@ -366,6 +366,6 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  gravityAcceleration: 20
+  gravityAcceleration: 5000
   groundedVerticalVelocity: -2
   debugLocomotionState: 0

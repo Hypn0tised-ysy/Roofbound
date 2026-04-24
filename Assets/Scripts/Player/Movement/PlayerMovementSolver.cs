@@ -76,7 +76,7 @@ public sealed class PlayerMovementSolver
 
         if (isGrounded && verticalVelocity < 0f)
         {
-            verticalVelocity = groundedVerticalVelocity;
+            verticalVelocity = 0f;
         }
 
         // 跳跃触发：直接写入起跳竖直速度。
@@ -94,9 +94,9 @@ public sealed class PlayerMovementSolver
             + upAxis * (verticalVelocity * deltaTime);
 
         CollisionFlags flags = controller.Move(frameMotion);
-        if ((flags & CollisionFlags.Below) != 0 && verticalVelocity < groundedVerticalVelocity)
+        if ((flags & CollisionFlags.Below) != 0 && verticalVelocity < 0f)
         {
-            verticalVelocity = groundedVerticalVelocity;
+            verticalVelocity = 0f;
         }
 
         isGrounded = checkGrounded();

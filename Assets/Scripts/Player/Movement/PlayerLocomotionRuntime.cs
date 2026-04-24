@@ -38,7 +38,7 @@ public sealed class PlayerLocomotionRuntime
     }
 
     public void UpdateBeforeMovement(
-        bool isGrounded,
+        PlayerLocomotionState preMoveState,
         float verticalVelocity,
         bool jumpPressedThisFrame,
         float forwardInput,
@@ -48,6 +48,10 @@ public sealed class PlayerLocomotionRuntime
         float sprintCooldown,
         float deltaTime)
     {
+        bool isOnPlatform = preMoveState == PlayerLocomotionState.OnPlatform;
+        bool isGrounded = preMoveState == PlayerLocomotionState.OnPlatform
+            || preMoveState == PlayerLocomotionState.Grounded;
+
         if (SprintTimer > 0f)
         {
             SprintTimer -= deltaTime;
@@ -58,12 +62,18 @@ public sealed class PlayerLocomotionRuntime
             SprintCooldownTimer -= deltaTime;
         }
 
-        if (isGrounded && verticalVelocity <= 0.01f)
+        // 状态机约束：仅站在平台上才允许刷新跳跃资格。
+        if (!isOnPlatform)
+        {
+            canJump = false;
+        }
+
+        if (isOnPlatform && verticalVelocity <= 0.01f)
         {
             canJump = true;
         }
 
-        if (isGrounded && !wasGrounded)
+        if (isOnPlatform && !wasGrounded)
         {
             canJump = true;
         }
@@ -76,7 +86,7 @@ public sealed class PlayerLocomotionRuntime
             canJump = false;
         }
 
-        bool canSprint = isGrounded
+        bool canSprint = isOnPlatform
             && SprintCooldownTimer <= 0f
             && SprintTimer <= 0f
             && forwardInput > sprintForwardThreshold;

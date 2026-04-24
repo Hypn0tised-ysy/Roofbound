@@ -75,6 +75,7 @@ public sealed class PlayerLocomotionStateDriver
         driver.Register(PlayerLocomotionState.OnPlatform, noopNode);
         driver.Register(PlayerLocomotionState.Airborne, noopNode);
         driver.Register(PlayerLocomotionState.PostSprint, noopNode);
+        driver.Register(PlayerLocomotionState.Dead, noopNode);
 
         return driver;
     }
