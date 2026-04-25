@@ -17,6 +17,23 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class playerControl : MonoBehaviour
 {
+    public bool IsSprinting => locomotionRuntime != null && locomotionRuntime.IsSprinting();
+
+    public float CurrentHorizontalSpeed
+    {
+        get
+        {
+            if (controller == null)
+            {
+                return 0f;
+            }
+
+            Vector3 horizontalVelocity = controller.velocity;
+            horizontalVelocity.y = 0f;
+            return horizontalVelocity.magnitude;
+        }
+    }
+
     [SerializeField] private player_config configAsset;
 
     // 按需求固定世界上方向为 Y 轴正方向，且与重力方向相反。
