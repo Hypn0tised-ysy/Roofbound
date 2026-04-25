@@ -41,14 +41,13 @@ public sealed class PlayerLocomotionRuntime
         PlayerLocomotionState preMoveState,
         float verticalVelocity,
         bool jumpPressedThisFrame,
-        float forwardInput,
         bool sprintPressed,
-        float sprintForwardThreshold,
         float sprintDuration,
         float sprintCooldown,
         float deltaTime)
     {
-        bool isOnPlatform = preMoveState == PlayerLocomotionState.OnPlatform;
+        bool isOnPlatform = preMoveState == PlayerLocomotionState.OnPlatform
+            || preMoveState == PlayerLocomotionState.Grounded;
         bool isGrounded = preMoveState == PlayerLocomotionState.OnPlatform
             || preMoveState == PlayerLocomotionState.Grounded;
 
@@ -62,7 +61,7 @@ public sealed class PlayerLocomotionRuntime
             SprintCooldownTimer -= deltaTime;
         }
 
-        // 状态机约束：仅站在平台上才允许刷新跳跃资格。
+        // 状态机约束：仅处于可站立表面状态才允许刷新跳跃资格。
         if (!isOnPlatform)
         {
             canJump = false;
@@ -88,8 +87,7 @@ public sealed class PlayerLocomotionRuntime
 
         bool canSprint = isOnPlatform
             && SprintCooldownTimer <= 0f
-            && SprintTimer <= 0f
-            && forwardInput > sprintForwardThreshold;
+            && SprintTimer <= 0f;
 
         if (canSprint && sprintPressed)
         {

@@ -74,11 +74,6 @@ public sealed class PlayerMovementSolver
             relativeHorizontalVelocity = Vector3.zero;
         }
 
-        if (isGrounded && verticalVelocity < 0f)
-        {
-            verticalVelocity = 0f;
-        }
-
         // 跳跃触发：直接写入起跳竖直速度。
         if (locomotionRuntime.TryConsumeJumpQueued())
         {
@@ -96,7 +91,7 @@ public sealed class PlayerMovementSolver
         CollisionFlags flags = controller.Move(frameMotion);
         if ((flags & CollisionFlags.Below) != 0 && verticalVelocity < 0f)
         {
-            verticalVelocity = 0f;
+            verticalVelocity = groundedVerticalVelocity;
         }
 
         isGrounded = checkGrounded();

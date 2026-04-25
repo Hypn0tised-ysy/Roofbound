@@ -61,6 +61,10 @@ public class playerControl : MonoBehaviour
     [Tooltip("接地时保持轻微向下速度，提升 CharacterController 贴地稳定性。")]
     [SerializeField] private float groundedVerticalVelocity = -2f;
 
+    [Header("测试开关")]
+    [Tooltip("地面触发 dead 事件后是否锁定输入。测试阶段可关闭以继续移动。")]
+    [SerializeField] private bool lockInputAfterGroundDead = false;
+
     // CharacterController 用于移动与碰撞。
     private CharacterController controller;
 
@@ -201,9 +205,7 @@ public class playerControl : MonoBehaviour
             preMoveState,
             verticalVelocity,
             inputSnapshot.JumpPressedThisFrame,
-            inputSnapshot.Move.y,
             inputSnapshot.SprintPressed,
-            sprintForwardThreshold,
             sprintDuration,
             sprintCooldown,
             Time.deltaTime);
@@ -263,6 +265,11 @@ public class playerControl : MonoBehaviour
 
     private void OnGameDead()
     {
+        if (!lockInputAfterGroundDead)
+        {
+            return;
+        }
+
         isInputLockedByDeath = true;
         inputSnapshot = default;
     }
