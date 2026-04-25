@@ -20,7 +20,7 @@ MonoBehaviour:
   mouseLookSensitivity: 0.15
   minPitch: -75
   maxPitch: 75
-  jumpSpeed: 27
+  jumpSpeed: 45
   groundCheckRadius: 0.2
   groundMask:
     serializedVersion: 2

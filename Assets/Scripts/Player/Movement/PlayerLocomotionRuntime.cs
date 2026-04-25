@@ -14,7 +14,7 @@ public sealed class PlayerLocomotionRuntime
 
     public void Initialize(bool isInitiallyGrounded)
     {
-        canJump = isInitiallyGrounded;
+        canJump = false;
         wasGrounded = isInitiallyGrounded;
         jumpQueued = false;
         SprintTimer = 0f;
@@ -46,8 +46,8 @@ public sealed class PlayerLocomotionRuntime
         float sprintCooldown,
         float deltaTime)
     {
-        bool isOnPlatform = preMoveState == PlayerLocomotionState.OnPlatform
-            || preMoveState == PlayerLocomotionState.Grounded;
+        bool canJumpSurface = preMoveState == PlayerLocomotionState.OnPlatform;
+        bool canSprintSurface = preMoveState == PlayerLocomotionState.OnPlatform;
         bool isGrounded = preMoveState == PlayerLocomotionState.OnPlatform
             || preMoveState == PlayerLocomotionState.Grounded;
 
@@ -62,17 +62,23 @@ public sealed class PlayerLocomotionRuntime
         }
 
         // 状态机约束：仅处于可站立表面状态才允许刷新跳跃资格。
-        if (!isOnPlatform)
+        if (!canJumpSurface)
         {
             canJump = false;
+            jumpQueued = false;
         }
 
-        if (isOnPlatform && verticalVelocity <= 0.01f)
+        if (!canSprintSurface)
+        {
+            SprintTimer = 0f;
+        }
+
+        if (canJumpSurface && verticalVelocity <= 0.01f)
         {
             canJump = true;
         }
 
-        if (isOnPlatform && !wasGrounded)
+        if (canJumpSurface && !wasGrounded)
         {
             canJump = true;
         }
@@ -85,7 +91,7 @@ public sealed class PlayerLocomotionRuntime
             canJump = false;
         }
 
-        bool canSprint = isOnPlatform
+        bool canSprint = canSprintSurface
             && SprintCooldownTimer <= 0f
             && SprintTimer <= 0f;
 

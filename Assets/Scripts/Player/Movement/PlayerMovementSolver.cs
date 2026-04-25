@@ -57,8 +57,8 @@ public sealed class PlayerMovementSolver
         Vector3 rawMove = moveForward * input.y - right * input.x;
         Vector3 moveDir = rawMove.sqrMagnitude > 0.0001f ? rawMove.normalized : Vector3.zero;
 
-        // 处于冲刺持续窗口时，使用冲刺倍率。
-        bool isSprinting = locomotionRuntime.IsSprinting();
+        // 空中不应用冲刺倍率，避免出现空中冲刺。
+        bool isSprinting = isGrounded && locomotionRuntime.IsSprinting();
         float finalMoveSpeed = isSprinting ? speed * sprintMultiplier : speed;
 
         // 速度机制：
@@ -74,8 +74,8 @@ public sealed class PlayerMovementSolver
             relativeHorizontalVelocity = Vector3.zero;
         }
 
-        // 跳跃触发：直接写入起跳竖直速度。
-        if (locomotionRuntime.TryConsumeJumpQueued())
+        // 空中不消费跳跃队列，避免空中触发二次跳。
+        if (isGrounded && locomotionRuntime.TryConsumeJumpQueued())
         {
             // 起跳瞬间锁存平台速度，保证离地后稳定继承。
             platformMotion.HandleJumpTriggered();

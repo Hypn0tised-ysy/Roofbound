@@ -7,12 +7,11 @@ using UnityEngine;
 /// 玩家基础控制器：
 /// 1. 使用 Unity Input System 读取 WASD（2D 方向）输入。
 /// 2. 使用 CharacterController 进行运动控制。
-/// 3. 使用空格键触发跳跃，并通过地面检测限制连跳。
+/// 3. 使用空格键触发跳跃；地面死亡检测由 ground 相关脚本负责。
 ///
 /// 使用方式：
 /// - 将脚本挂到玩家物体上。
 /// - 玩家物体必须包含 CharacterController（脚本通过 RequireComponent 强制要求）。
-/// - 推荐在 Inspector 中配置 groundCheckPoint 与 groundMask，提升地面检测稳定性。
 /// </summary>
 [RequireComponent(typeof(CharacterController))]
 public class playerControl : MonoBehaviour
@@ -66,12 +65,6 @@ public class playerControl : MonoBehaviour
     [Tooltip("玩家跳跃速度（使用 VelocityChange 直接赋予）。")]
     [SerializeField] private float jumpSpeed = 7f;
 
-    [Header("地面检测")]
-    [Tooltip("地面检测点。一般放在角色脚底。为空时会回退使用角色位置附近检测。")]
-    [SerializeField] private Transform groundCheckPoint;
-    [SerializeField] private float groundCheckRadius = 0.2f;
-    [SerializeField] private LayerMask groundMask = ~0;
-
     [Header("重力参数")]
     [Tooltip("重力加速度（单位：m/s^2）。")]
     [SerializeField] private float gravityAcceleration = 20f;
@@ -112,9 +105,6 @@ public class playerControl : MonoBehaviour
     // 移动求解运行时。
     private PlayerMovementSolver movementSolver;
 
-    // 玩家侧地面命中检测器。
-    private playerHitGround hitGroundHandler;
-
     // 关卡控制器（用于监听死亡事件）。
     private levelController levelControllerRef;
 
@@ -151,20 +141,19 @@ public class playerControl : MonoBehaviour
         lookController.Initialize(lookTarget, Vector3.forward, 0f);
         lookTarget = lookController.LookTarget;
 
-        movementSolver = new PlayerMovementSolver(controller, platformMotion, lookController, FixedUp, CheckGrounded);
-
-        hitGroundHandler = GetComponent<playerHitGround>();
-        if (hitGroundHandler == null)
-        {
-            hitGroundHandler = gameObject.AddComponent<playerHitGround>();
-        }
+        movementSolver = new PlayerMovementSolver(
+            controller,
+            platformMotion,
+            lookController,
+            FixedUp,
+            () => controller != null && controller.isGrounded);
 
         levelControllerRef = FindObjectOfType<levelController>();
 
         locomotionRuntime = new PlayerLocomotionRuntime();
 
         // 初始化跳跃状态：若开局即接地，则允许跳跃。
-        isGrounded = CheckGrounded();
+        isGrounded = controller != null && controller.isGrounded;
         verticalVelocity = 0f;
         relativeHorizontalVelocity = Vector3.zero;
         locomotionRuntime.Initialize(isGrounded);
@@ -206,7 +195,7 @@ public class playerControl : MonoBehaviour
     {
         if (isInputLockedByDeath)
         {
-            isGrounded = CheckGrounded();
+            isGrounded = controller != null && controller.isGrounded;
             UpdateLocomotionStateMachine();
             locomotionStateDriver?.Tick(BuildLocomotionFrameContext(), Time.deltaTime);
             return;
@@ -216,7 +205,7 @@ public class playerControl : MonoBehaviour
 
         lookController.UpdateFromMouse(inputSnapshot.Look, mouseLookSensitivity, minPitch, maxPitch);
 
-        isGrounded = CheckGrounded();
+        isGrounded = controller != null && controller.isGrounded;
         PlayerLocomotionState preMoveState = ResolveLocomotionState();
         locomotionRuntime.UpdateBeforeMovement(
             preMoveState,
@@ -331,39 +320,18 @@ public class playerControl : MonoBehaviour
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
+        if (hit == null || hit.collider == null)
+        {
+            return;
+        }
+
+        // ground 由独立脚本处理死亡判定，不应参与平台继承速度。
+        if (hit.collider.GetComponent<ground>() != null)
+        {
+            return;
+        }
+
         platformMotion.RegisterGroundHit(hit, FixedUp);
-        hitGroundHandler?.TryHandleControllerHit(hit, FixedUp, gameObject);
-    }
-
-    /// <summary>
-    /// 地面检测：
-    /// - 优先使用 groundCheckPoint 作为球体检测中心。
-    /// - 未配置时使用角色位置下方少量偏移作为回退方案。
-    /// </summary>
-    private bool CheckGrounded()
-    {
-        bool controllerGrounded = controller != null && controller.isGrounded;
-
-        if (groundCheckPoint != null)
-        {
-            bool sphereGrounded = Physics.CheckSphere(groundCheckPoint.position, groundCheckRadius, groundMask, QueryTriggerInteraction.Ignore);
-            return controllerGrounded || sphereGrounded;
-        }
-
-        // 回退方案：未指定检测点时，基于 CharacterController 底部做检测。
-        if (controller != null)
-        {
-            float checkOffset = controller.height * 0.5f - controller.radius + controller.skinWidth + 0.02f;
-            Vector3 checkPos = transform.position - FixedUp * checkOffset;
-            float radius = Mathf.Max(groundCheckRadius, controller.radius * 0.95f);
-            bool sphereGrounded = Physics.CheckSphere(checkPos, radius, groundMask, QueryTriggerInteraction.Ignore);
-            return controllerGrounded || sphereGrounded;
-        }
-
-        // 最后兜底：无碰撞体时仍使用原始偏移。
-        Vector3 fallbackPos = transform.position - FixedUp * 0.9f;
-        bool fallbackGrounded = Physics.CheckSphere(fallbackPos, groundCheckRadius, groundMask, QueryTriggerInteraction.Ignore);
-        return controllerGrounded || fallbackGrounded;
     }
 
     private void ApplyConfigAsset()
@@ -383,10 +351,8 @@ public class playerControl : MonoBehaviour
         minPitch = configAsset.minPitch;
         maxPitch = configAsset.maxPitch;
         jumpSpeed = configAsset.jumpSpeed;
-        groundCheckRadius = configAsset.groundCheckRadius;
         gravityAcceleration = configAsset.gravityAcceleration;
         groundedVerticalVelocity = configAsset.groundedVerticalVelocity;
-        groundMask = configAsset.groundMask;
     }
 
     /// <summary>
@@ -394,12 +360,6 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void OnDrawGizmosSelected()
     {
-        Gizmos.color = isGrounded ? Color.green : Color.red;
-        Vector3 checkPos = groundCheckPoint != null
-            ? groundCheckPoint.position
-            : transform.position - FixedUp * 0.9f;
-        Gizmos.DrawWireSphere(checkPos, groundCheckRadius);
-
         // 辅助显示当前固定 up 与前进方向，便于验证方向约束是否正确。
         Gizmos.color = Color.cyan;
         Gizmos.DrawLine(transform.position, transform.position + FixedUp * 1.2f);
