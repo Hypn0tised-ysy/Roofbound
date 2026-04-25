@@ -26,6 +26,8 @@ public class levelController : MonoBehaviour
 
     [Header("结束流程")]
     [SerializeField] private GameObject finishMenuPanel;
+    [Tooltip("是否在玩家触地时触发 game_dead 事件。测试继续移动时可关闭。")]
+    [SerializeField] private bool triggerDeadOnGroundHit = false;
 
     private GameObject spawnedMainCharacter;
     private bool isGameFinished;
@@ -72,6 +74,12 @@ public class levelController : MonoBehaviour
 
     public void NotifyPlayerHitGround(GameObject player)
     {
+        if (!triggerDeadOnGroundHit)
+        {
+            Debug.Log("[levelController] 已关闭触地死亡触发，忽略本次触地事件。");
+            return;
+        }
+
         if (isGameFinished || isGameDead)
         {
             return;

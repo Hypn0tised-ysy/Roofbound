@@ -61,7 +61,7 @@ public sealed class PlatformMotionTracker
 
     private void RefreshCurrentPlatform(bool isGrounded)
     {
-        // 离地时清空；接地但本帧无回调时保留上帧平台，避免速度抖动。
+        // 离地时清空；接地但本帧未检测到平台时也清空，避免 Grounded 被误判为 OnPlatform。
         if (!isGrounded)
         {
             CurrentPlatform = null;
@@ -71,6 +71,8 @@ public sealed class PlatformMotionTracker
 
         if (detectedPlatformThisFrame == null)
         {
+            CurrentPlatform = null;
+            PlatformVelocity = Vector3.zero;
             return;
         }
 
