@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: truck_config
   m_EditorClassIdentifier: 
   speed: 5
-  mass: 1
+  mass: 10
   drag: 0
-  angularDrag: 0.05
+  angularDrag: 0.5
   useGravity: 1
   isKinematic: 0
   interpolation: 0

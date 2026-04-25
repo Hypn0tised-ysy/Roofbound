@@ -25,7 +25,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3526656333118620634, guid: 560773f1243613d42bec8f476ea5936d, type: 3}
       propertyPath: m_Name
-      value: Ambulance
+      value: Ambulance Variant
       objectReference: {fileID: 0}
     - target: {fileID: 3526656333118620634, guid: 560773f1243613d42bec8f476ea5936d, type: 3}
       propertyPath: m_Layer
@@ -106,9 +106,9 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4913352986185564498}
   serializedVersion: 2
-  m_Mass: 1
+  m_Mass: 100
   m_Drag: 0
-  m_AngularDrag: 0.05
+  m_AngularDrag: 5
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
@@ -139,7 +139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b4a97a3212da73408ebcafbe9030897, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  configAsset: {fileID: 0}
+  configAsset: {fileID: 11400000, guid: 8a3de7fc4d10b104b9b67fc304e34e49, type: 2}
   speed: 5
   mass: 1
   drag: 0

@@ -16,7 +16,7 @@ public class player_config : ScriptableObject
     public float maxPitch = 75f;
 
     [Header("跳跃参数")]
-    public float jumpSpeed = 27f;
+    public float jumpSpeed = 45f;
 
     [Header("地面检测")]
     public float groundCheckRadius = 0.2f;
