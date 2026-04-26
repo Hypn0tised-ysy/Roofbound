@@ -876,7 +876,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 109500649}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertyToggle, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -1537,7 +1537,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 212940364}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -3070,7 +3070,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 418489303}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -5775,7 +5775,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 701219260}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -6418,7 +6418,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 768142400}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -7337,7 +7337,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 852556075}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -7890,7 +7890,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 898287134}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -9006,7 +9006,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1003915358}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -9199,7 +9199,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1025446937}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -11874,7 +11874,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1357300230}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -15917,7 +15917,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1774926684}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -16029,7 +16029,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1781660831}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertyToggle, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -16358,7 +16358,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1815253909}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.Core.Demo.ForegroundToggle,
+          Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -20147,7 +20148,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 2099475046}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -20487,7 +20488,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 2129107892}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertyToggle, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -20605,7 +20606,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 2137120003}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -20831,7 +20832,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 2140617487}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.PropertySlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
