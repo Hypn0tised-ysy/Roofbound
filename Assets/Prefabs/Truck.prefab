@@ -88,6 +88,8 @@ MonoBehaviour:
   motorForce: 6000
   steerForce: 8
   maxSpeed: 20
+  switchDistance: 15
+  waypoints: []
   stabilizeForce: 10000
   wheels:
   - {fileID: 8746814000041146972}
@@ -99,10 +101,7 @@ MonoBehaviour:
   - {fileID: 8746814000041118260}
   - {fileID: 8746814000041136924}
   wheelSpinSpeed: 50
-  waypoints: []
-  switchDistance: 15
   slipperyMat: {fileID: 13400000, guid: 3e40cbc3d41f4104993b3d93ed658971, type: 2}
-  targetWaypoint: {fileID: 0}
 --- !u!1 &8746814000040794716
 GameObject:
   m_ObjectHideFlags: 0

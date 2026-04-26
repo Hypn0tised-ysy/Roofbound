@@ -2930,7 +2930,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 731756075}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.LowPoly.TimeSlider, Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
@@ -6285,7 +6285,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1815253909}
-        m_TargetAssemblyTypeName: 
+        m_TargetAssemblyTypeName: Borodar.FarlandSkies.Core.Demo.ForegroundToggle,
+          Assembly-CSharp
         m_MethodName: OnValueChanged
         m_Mode: 0
         m_Arguments:
