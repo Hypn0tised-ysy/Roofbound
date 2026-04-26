@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e58a3db26a0fc1e478859991d540ea08, type: 3}
   m_Name: player_config
   m_EditorClassIdentifier: 
-  speed: 6
+  speed: 16
   sprintMultiplier: 1.6
   sprintForwardThreshold: 0.1
   sprintDuration: 0.25
@@ -20,10 +20,10 @@ MonoBehaviour:
   mouseLookSensitivity: 0.15
   minPitch: -75
   maxPitch: 75
-  jumpSpeed: 7
+  jumpSpeed: 45
   groundCheckRadius: 0.2
   groundMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  gravityAcceleration: 20
+  gravityAcceleration: 80
   groundedVerticalVelocity: -2

@@ -14,7 +14,7 @@ public sealed class PlayerLocomotionRuntime
 
     public void Initialize(bool isInitiallyGrounded)
     {
-        canJump = isInitiallyGrounded;
+        canJump = false;
         wasGrounded = isInitiallyGrounded;
         jumpQueued = false;
         SprintTimer = 0f;
@@ -38,16 +38,19 @@ public sealed class PlayerLocomotionRuntime
     }
 
     public void UpdateBeforeMovement(
-        bool isGrounded,
+        PlayerLocomotionState preMoveState,
         float verticalVelocity,
         bool jumpPressedThisFrame,
-        float forwardInput,
         bool sprintPressed,
-        float sprintForwardThreshold,
         float sprintDuration,
         float sprintCooldown,
         float deltaTime)
     {
+        bool canJumpSurface = preMoveState == PlayerLocomotionState.OnPlatform;
+        bool canSprintSurface = preMoveState == PlayerLocomotionState.OnPlatform;
+        bool isGrounded = preMoveState == PlayerLocomotionState.OnPlatform
+            || preMoveState == PlayerLocomotionState.Grounded;
+
         if (SprintTimer > 0f)
         {
             SprintTimer -= deltaTime;
@@ -58,12 +61,24 @@ public sealed class PlayerLocomotionRuntime
             SprintCooldownTimer -= deltaTime;
         }
 
-        if (isGrounded && verticalVelocity <= 0.01f)
+        // 状态机约束：仅处于可站立表面状态才允许刷新跳跃资格。
+        if (!canJumpSurface)
+        {
+            canJump = false;
+            jumpQueued = false;
+        }
+
+        if (!canSprintSurface)
+        {
+            SprintTimer = 0f;
+        }
+
+        if (canJumpSurface && verticalVelocity <= 0.01f)
         {
             canJump = true;
         }
 
-        if (isGrounded && !wasGrounded)
+        if (canJumpSurface && !wasGrounded)
         {
             canJump = true;
         }
@@ -76,10 +91,9 @@ public sealed class PlayerLocomotionRuntime
             canJump = false;
         }
 
-        bool canSprint = isGrounded
+        bool canSprint = canSprintSurface
             && SprintCooldownTimer <= 0f
-            && SprintTimer <= 0f
-            && forwardInput > sprintForwardThreshold;
+            && SprintTimer <= 0f;
 
         if (canSprint && sprintPressed)
         {

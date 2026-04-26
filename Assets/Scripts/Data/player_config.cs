@@ -4,7 +4,7 @@ using UnityEngine;
 public class player_config : ScriptableObject
 {
     [Header("移动参数")]
-    public float speed = 6f;
+    public float speed = 16f;
     public float sprintMultiplier = 1.6f;
     public float sprintForwardThreshold = 0.1f;
     public float sprintDuration = 0.25f;
@@ -16,13 +16,13 @@ public class player_config : ScriptableObject
     public float maxPitch = 75f;
 
     [Header("跳跃参数")]
-    public float jumpSpeed = 7f;
+    public float jumpSpeed = 45f;
 
     [Header("地面检测")]
     public float groundCheckRadius = 0.2f;
     public LayerMask groundMask = ~0;
 
     [Header("重力参数")]
-    public float gravityAcceleration = 20f;
+    public float gravityAcceleration = 80f;
     public float groundedVerticalVelocity = -2f;
 }
