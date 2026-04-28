@@ -17,6 +17,7 @@ public class player_config : ScriptableObject
 
     [Header("跳跃参数")]
     public float jumpSpeed = 45f;
+    public float airborneJumpGraceDuration = 0.12f;
 
     [Header("地面检测")]
     public float groundCheckRadius = 0.2f;

@@ -33,7 +33,27 @@ public class playerControl : MonoBehaviour
         }
     }
 
-    [SerializeField] private player_config configAsset;
+    // Sprint cooldown info exposed for UI
+    public float SprintCooldownRemaining
+    {
+        get
+        {
+            return locomotionRuntime != null ? locomotionRuntime.SprintCooldownTimer : 0f;
+        }
+    }
+
+    public float SprintCooldownDuration
+    {
+        get { return sprintCooldown; }
+    }
+
+    // Expose jump qualification for UI/debug
+    public bool CanJump
+    {
+        get { return locomotionRuntime != null && locomotionRuntime.CanJump; }
+    }
+
+    [SerializeField] public player_config configAsset;
 
     // 按需求固定世界上方向为 Y 轴正方向，且与重力方向相反。
     private static readonly Vector3 FixedUp = new Vector3(0f, 1f, 0f);
@@ -64,6 +84,8 @@ public class playerControl : MonoBehaviour
     [Header("跳跃参数")]
     [Tooltip("玩家跳跃速度（使用 VelocityChange 直接赋予）。")]
     [SerializeField] private float jumpSpeed = 7f;
+    [Tooltip("从平台离开进入空中后，仍允许起跳的宽限时间（秒）。")]
+    [SerializeField] private float airborneJumpGraceDuration = 0.12f;
 
     [Header("重力参数")]
     [Tooltip("重力加速度（单位：m/s^2）。")]
@@ -118,7 +140,7 @@ public class playerControl : MonoBehaviour
     private PlayerLocomotionStateDriver locomotionStateDriver;
 
     // 暴露给 Inspector/调试窗口观察当前状态。
-    [SerializeField] private PlayerLocomotionState debugLocomotionState;
+    [SerializeField] public PlayerLocomotionState debugLocomotionState;
 
     /// <summary>
     /// Awake 在脚本生命周期中最早执行：
@@ -214,6 +236,7 @@ public class playerControl : MonoBehaviour
             inputSnapshot.SprintPressed,
             sprintDuration,
             sprintCooldown,
+            airborneJumpGraceDuration,
             Time.deltaTime);
 
         UpdateMovement();
@@ -351,6 +374,7 @@ public class playerControl : MonoBehaviour
         minPitch = configAsset.minPitch;
         maxPitch = configAsset.maxPitch;
         jumpSpeed = configAsset.jumpSpeed;
+        airborneJumpGraceDuration = configAsset.airborneJumpGraceDuration;
         gravityAcceleration = configAsset.gravityAcceleration;
         groundedVerticalVelocity = configAsset.groundedVerticalVelocity;
     }
