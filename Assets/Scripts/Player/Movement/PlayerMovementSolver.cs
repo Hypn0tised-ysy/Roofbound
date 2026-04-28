@@ -74,11 +74,16 @@ public sealed class PlayerMovementSolver
             relativeHorizontalVelocity = Vector3.zero;
         }
 
-        // 空中不消费跳跃队列，避免空中触发二次跳。
-        if (isGrounded && locomotionRuntime.TryConsumeJumpQueued())
+        // 允许接地跳，或在离开平台后的短暂宽限窗口内触发一次跳跃。
+        bool canConsumeJump = isGrounded || locomotionRuntime.CanUseAirborneJumpGrace;
+        if (canConsumeJump && locomotionRuntime.TryConsumeJumpQueued())
         {
-            // 起跳瞬间锁存平台速度，保证离地后稳定继承。
-            platformMotion.HandleJumpTriggered();
+            // 仅接地时锁存当前平台速度；空中宽限跳不应覆盖既有继承速度。
+            if (isGrounded)
+            {
+                platformMotion.HandleJumpTriggered();
+            }
+
             verticalVelocity = jumpSpeed;
         }
 
