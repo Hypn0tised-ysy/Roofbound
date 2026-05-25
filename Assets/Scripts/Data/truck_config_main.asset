@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8b78618ca932b44893443f07b3eb787, type: 3}
-  m_Name: truck_config
+  m_Name: truck_config_main
   m_EditorClassIdentifier: 
-  speed: 5
+  speed: -20
   mass: 10
   drag: 0
   angularDrag: 0.5
