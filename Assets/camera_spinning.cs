@@ -13,14 +13,29 @@ public class camera_spinning : MonoBehaviour
     [Tooltip("Fixed offset added after reflection (degrees).")]
     [SerializeField] private float reflectionOffset = 15f;
 
+    [Tooltip("Total FOV swing range (degrees) for zoom in/out.")]
+    [SerializeField] private float zoomInRange = 15f;
+
+    [Tooltip("FOV change speed (degrees per second).")]
+    [SerializeField] private float zoomSpeed = 5f;
+
     private Quaternion baseRotation;
     private Vector3 baseForward;
     private Vector3 baseUp;
     private Vector3 currentDir;
     private Vector3 turnAxis;
+    private Camera targetCamera;
+    private float baseFov;
+    private float zoomDirection = 1f;
 
     void Start()
     {
+        targetCamera = GetComponent<Camera>();
+        if (targetCamera != null)
+        {
+            baseFov = targetCamera.fieldOfView;
+        }
+
         baseRotation = transform.rotation;
         baseForward = baseRotation * Vector3.forward;
         baseUp = baseRotation * Vector3.up;
@@ -32,6 +47,8 @@ public class camera_spinning : MonoBehaviour
 
     void Update()
     {
+        UpdateZoom();
+
         float maxAngle = Mathf.Clamp(angle, 0f, 89.9f);
         float step = speed * Time.deltaTime;
 
@@ -50,6 +67,32 @@ public class camera_spinning : MonoBehaviour
         }
 
         transform.rotation = Quaternion.LookRotation(nextDir, baseUp);
+    }
+
+    private void UpdateZoom()
+    {
+        if (targetCamera == null)
+        {
+            return;
+        }
+
+        float halfRange = Mathf.Max(0f, zoomInRange) * 0.5f;
+        float minFov = baseFov - halfRange;
+        float maxFov = baseFov + halfRange;
+
+        float nextFov = targetCamera.fieldOfView + zoomDirection * zoomSpeed * Time.deltaTime;
+        if (nextFov > maxFov)
+        {
+            nextFov = maxFov;
+            zoomDirection = -1f;
+        }
+        else if (nextFov < minFov)
+        {
+            nextFov = minFov;
+            zoomDirection = 1f;
+        }
+
+        targetCamera.fieldOfView = nextFov;
     }
 
     private Vector3 GetRandomDirectionInCone()
