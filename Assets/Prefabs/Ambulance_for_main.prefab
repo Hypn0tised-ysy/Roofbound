@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1139441474803750998
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8845186536087954949}
+  m_Layer: 0
+  m_Name: isTruckTag
+  m_TagString: truck
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8845186536087954949
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1139441474803750998}
+  m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
+  m_LocalPosition: {x: -1.136858, y: 2.2289546, z: -0.6583843}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5137498739746991809}
+  m_RootOrder: 3
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &8421326398258987656
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -261,6 +292,11 @@ MonoBehaviour:
   flippedUpDotThreshold: 0.25
   flippedLinearDragCoefficient: 4
   flippedAngularDampingCoefficient: 2
+--- !u!4 &5137498739746991809 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3716173791827209289, guid: 560773f1243613d42bec8f476ea5936d, type: 3}
+  m_PrefabInstance: {fileID: 8421326398258987656}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &5138742761934744832 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3715176043198427016, guid: 560773f1243613d42bec8f476ea5936d, type: 3}
