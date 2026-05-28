@@ -58,7 +58,9 @@ public sealed class PlayerInputReader
             JumpPressedThisFrame = jumpAction != null && jumpAction.WasPressedThisFrame(),
             SprintPressed = sprintAction != null && sprintAction.IsPressed(),
             PrimarySkillPressedThisFrame = primarySkillAction != null && primarySkillAction.WasPressedThisFrame(),
+            PrimarySkillHeld = primarySkillAction != null && primarySkillAction.IsPressed(),
             SlowTimeHeld = slowTimeAction != null && slowTimeAction.IsPressed(),
+            SecondarySkillPressedThisFrame = slowTimeAction != null && slowTimeAction.WasPressedThisFrame(),
         };
     }
 }

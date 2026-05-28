@@ -1,9 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// TODO: 后续可将 canJump 迁移到状态机(FSM)。
-// TODO: 后续可将输入动作迁移到 InputActionAsset。
-
 /// <summary>
 /// 玩家基础控制器：
 /// 1. 使用 Unity Input System 读取 WASD（2D 方向）输入。
@@ -21,6 +18,8 @@ public class playerControl : MonoBehaviour
 
     public bool IsAirDashing => airDashTimer > 0f;
     public float AirDashFovDelta => airDashFovDelta;
+    public string CurrentMovementSkillName => movementSkillName;
+    public string CurrentUtilitySkillName => utilitySkillName;
 
     public float CurrentHorizontalSpeed
     {
@@ -92,22 +91,14 @@ public class playerControl : MonoBehaviour
     [SerializeField] private float airborneJumpGraceDuration = 0.12f;
 
     [Header("技能选择")]
-    [SerializeField] private bool useSkillOverrides = false;
+    [SerializeField] private bool useSkillOverrides = true;
     [SerializeField] private MovementSkillId overrideMovementSkillId = MovementSkillId.None;
     [SerializeField] private UtilitySkillId overrideUtilitySkillId = UtilitySkillId.None;
 
-    [Header("空中冲刺技能")]
-    [SerializeField] private float airDashSpeed = 12f;
-    [SerializeField] private float airDashDuration = 0.25f;
-    [SerializeField] private float airDashCooldown = 0.8f;
-    [SerializeField] private float airDashFovDelta = 8f;
-
-    [Header("时间变慢技能")]
-    [SerializeField] private float slowTimeScale = 0.2f;
-    [SerializeField] private float slowTimeFixedDeltaScale = 0.2f;
-    [SerializeField] private float slowTimeVolumeTargetWeight = 0.3f;
-    [SerializeField] private float slowTimeVolumeLerpSpeed = 6f;
+    [Header("技能参数来源")]
+    [SerializeField] private PlayerSkillParameters skillParameters;
     [SerializeField] private Volume timeSlowVolume;
+    [SerializeField] private GameObject timeSlowVolumePrefab;
 
     [Header("重力参数")]
     [Tooltip("重力加速度（单位：m/s^2）。")]
@@ -158,11 +149,55 @@ public class playerControl : MonoBehaviour
 
     private MovementSkillId movementSkillId = MovementSkillId.None;
     private UtilitySkillId utilitySkillId = UtilitySkillId.None;
+    private string movementSkillName = "None";
+    private string utilitySkillName = "None";
+
+    private float airDashSpeed;
+    private float airDashDuration;
+    private float airDashCooldown;
+    private float airDashFovDelta;
+
+    private float slowTimeScale;
+    private float slowTimeFixedDeltaScale;
+    private float slowTimeVolumeTargetWeight;
+    private float slowTimeVolumeLerpSpeed;
+    private float slowTimeMaxDuration;
+    private float slowTimeCooldown;
+
+    private float jetPackUpSpeed;
+    private float jetPackMaxUpTime;
+    private float jetPackCooldown;
+
+    private float levitationMaxTime;
+    private float levitationCooldown;
+
+    private float teleportRange;
+    private float teleportHeight;
+    private float teleportCooldown;
+
+    private float freezeDuration;
+    private float freezeCooldown;
 
     private float airDashTimer;
     private float airDashCooldownTimer;
     private bool airDashAvailable;
     private Vector3 airDashDirection;
+
+    private float jetPackTimer;
+    private float jetPackCooldownTimer;
+
+    private float levitationTimer;
+    private float levitationCooldownTimer;
+    private bool levitationActive;
+
+    private float teleportCooldownTimer;
+
+    private float freezeTimer;
+    private float freezeCooldownTimer;
+    private bool isFreezingTrucks;
+
+    private float slowTimeTimer;
+    private float slowTimeCooldownTimer;
 
     private float baseFixedDeltaTime;
 
@@ -209,6 +244,8 @@ public class playerControl : MonoBehaviour
 
         locomotionRuntime = new PlayerLocomotionRuntime();
 
+        ApplySkillParameters();
+
         LoadSkillSelection();
         ResolveSkillOverrides();
 
@@ -228,6 +265,11 @@ public class playerControl : MonoBehaviour
             }
         }
 
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            EnsureTimeSlowVolume();
+        }
+
         InitializeLocomotionStateMachine();
     }
 
@@ -237,6 +279,8 @@ public class playerControl : MonoBehaviour
     private void OnEnable()
     {
         inputReader?.Enable();
+
+        SkillSelectionStore.SelectionChanged += OnSkillSelectionChanged;
 
         if (levelControllerRef != null)
         {
@@ -250,6 +294,8 @@ public class playerControl : MonoBehaviour
         {
             levelControllerRef.game_dead -= OnGameDead;
         }
+
+        SkillSelectionStore.SelectionChanged -= OnSkillSelectionChanged;
 
         inputReader?.Disable();
     }
@@ -278,8 +324,8 @@ public class playerControl : MonoBehaviour
         isGrounded = controller != null && controller.isGrounded;
         PlayerLocomotionState preMoveState = ResolveLocomotionState();
 
-        UpdateAirDash(preMoveState, Time.deltaTime);
-        UpdateSlowTime();
+        UpdateMovementSkill(preMoveState, Time.deltaTime);
+        UpdateUtilitySkill(Time.deltaTime);
 
         bool allowExtraJump = movementSkillId == MovementSkillId.DoubleJump && !isDead && !IsMenuPaused();
         locomotionRuntime.UpdateBeforeMovement(
@@ -385,17 +431,19 @@ public class playerControl : MonoBehaviour
     private void UpdateMovement()
     {
         PlayerInputSnapshot movementSnapshot = inputSnapshot;
-        if (IsAirDashing)
+        if (IsAirDashing || levitationActive)
         {
             movementSnapshot.Move = Vector2.zero;
         }
+
+        float gravity = levitationActive ? 0f : gravityAcceleration;
 
         movementSolver.Step(
             movementSnapshot,
             locomotionRuntime,
             speed,
             sprintMultiplier,
-            gravityAcceleration,
+            gravity,
             groundedVerticalVelocity,
             jumpSpeed,
             Time.deltaTime,
@@ -404,8 +452,54 @@ public class playerControl : MonoBehaviour
             ref relativeHorizontalVelocity);
     }
 
+    private void UpdateMovementSkill(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        ApplySkillParameters();
+
+        switch (movementSkillId)
+        {
+            case MovementSkillId.AirDash:
+                UpdateAirDash(preMoveState, deltaTime);
+                break;
+            case MovementSkillId.JetPack:
+                UpdateJetPack(preMoveState, deltaTime);
+                break;
+            case MovementSkillId.Levitation:
+                UpdateLevitation(preMoveState, deltaTime);
+                break;
+            case MovementSkillId.Teleport:
+                UpdateTeleport(preMoveState, deltaTime);
+                break;
+            default:
+                airDashTimer = 0f;
+                levitationActive = false;
+                break;
+        }
+    }
+
+    private void UpdateUtilitySkill(float deltaTime)
+    {
+        ApplySkillParameters();
+
+        switch (utilitySkillId)
+        {
+            case UtilitySkillId.SlowTime:
+                UpdateSlowTime();
+                break;
+            case UtilitySkillId.FreezeTrucks:
+                UpdateFreezeTrucks(deltaTime);
+                break;
+            default:
+                ResetSlowTime();
+                UpdateFreezeTrucksCleanup();
+                break;
+        }
+    }
+
     private void UpdateAirDash(PlayerLocomotionState preMoveState, float deltaTime)
     {
+        ApplySkillParameters();
+
         if (movementSkillId != MovementSkillId.AirDash || isDead || IsMenuPaused())
         {
             airDashTimer = 0f;
@@ -472,12 +566,33 @@ public class playerControl : MonoBehaviour
             return;
         }
 
-        if (inputSnapshot.SlowTimeHeld)
+        if (slowTimeCooldownTimer > 0f)
         {
+            slowTimeCooldownTimer = Mathf.Max(0f, slowTimeCooldownTimer - Time.deltaTime);
+        }
+
+        if (slowTimeTimer <= 0f && slowTimeCooldownTimer <= 0f)
+        {
+            slowTimeTimer = slowTimeMaxDuration;
+        }
+
+        if (inputSnapshot.SlowTimeHeld && slowTimeCooldownTimer <= 0f && slowTimeTimer > 0f)
+        {
+            slowTimeTimer = Mathf.Max(0f, slowTimeTimer - Time.deltaTime);
             ApplySlowTime();
+
+            if (slowTimeTimer <= 0f)
+            {
+                slowTimeCooldownTimer = slowTimeCooldown;
+            }
         }
         else
         {
+            if (slowTimeTimer < slowTimeMaxDuration && slowTimeCooldownTimer <= 0f)
+            {
+                slowTimeCooldownTimer = slowTimeCooldown;
+            }
+
             ResetSlowTime();
         }
     }
@@ -521,19 +636,438 @@ public class playerControl : MonoBehaviour
     private void LoadSkillSelection()
     {
         SkillSelectionData data = SkillSelectionStore.Load();
-        movementSkillId = SkillSelectionStore.ParseMovement(data.movementSkillId);
-        utilitySkillId = SkillSelectionStore.ParseUtility(data.utilitySkillId);
+        ApplySkillSelection(data);
+    }
+
+    private void OnSkillSelectionChanged(SkillSelectionData data)
+    {
+        ApplySkillSelection(data);
+    }
+
+    private void ApplySkillSelection(SkillSelectionData data)
+    {
+        if (data == null)
+        {
+            movementSkillName = "None";
+            utilitySkillName = "None";
+            movementSkillId = MovementSkillId.None;
+            utilitySkillId = UtilitySkillId.None;
+            return;
+        }
+
+        movementSkillName = string.IsNullOrEmpty(data.movementSkillId) ? "None" : data.movementSkillId;
+        utilitySkillName = string.IsNullOrEmpty(data.utilitySkillId) ? "None" : data.utilitySkillId;
+        movementSkillId = SkillSelectionStore.ResolveMovementId(movementSkillName);
+        utilitySkillId = SkillSelectionStore.ResolveUtilityId(utilitySkillName);
+
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            EnsureTimeSlowVolume();
+        }
     }
 
     private void ResolveSkillOverrides()
     {
         if (!useSkillOverrides)
         {
+            Debug.Log("[playerControl] 技能覆盖已关闭，使用存档的技能选择。");
             return;
         }
 
+        Debug.Log($"[playerControl] 使用技能覆盖：移动技能={overrideMovementSkillId}, 实用技能={overrideUtilitySkillId}");
         movementSkillId = overrideMovementSkillId;
         utilitySkillId = overrideUtilitySkillId;
+        movementSkillName = overrideMovementSkillId.ToString();
+        utilitySkillName = overrideUtilitySkillId.ToString();
+
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            Debug.Log("[playerControl] 实用技能覆盖为 SlowTime，确保 TimeSlowVolume 已准备就绪。");
+            EnsureTimeSlowVolume();
+        }
+    }
+
+    private void ApplySkillParameters()
+    {
+        if (skillParameters == null)
+        {
+            return;
+        }
+
+        airDashSpeed = skillParameters.airDashSpeed;
+        airDashDuration = skillParameters.airDashDuration;
+        airDashCooldown = skillParameters.airDashCooldown;
+        airDashFovDelta = skillParameters.airDashFovDelta;
+
+        slowTimeScale = skillParameters.slowTimeScale;
+        slowTimeFixedDeltaScale = skillParameters.slowTimeFixedDeltaScale;
+        slowTimeVolumeTargetWeight = skillParameters.slowTimeVolumeTargetWeight;
+        slowTimeVolumeLerpSpeed = skillParameters.slowTimeVolumeLerpSpeed;
+        slowTimeMaxDuration = skillParameters.slowTimeMaxDuration;
+        slowTimeCooldown = skillParameters.slowTimeCooldown;
+
+        jetPackUpSpeed = skillParameters.jetPackUpSpeed;
+        jetPackMaxUpTime = skillParameters.jetPackMaxUpTime;
+        jetPackCooldown = skillParameters.jetPackCooldown;
+
+        levitationMaxTime = skillParameters.levitationMaxTime;
+        levitationCooldown = skillParameters.levitationCooldown;
+
+        teleportRange = skillParameters.teleportRange;
+        teleportHeight = skillParameters.teleportHeight;
+        teleportCooldown = skillParameters.teleportCooldown;
+
+        freezeDuration = skillParameters.freezeDuration;
+        freezeCooldown = skillParameters.freezeCooldown;
+    }
+
+    public bool TryGetMovementTimerStatus(out float ratio, out bool isActiveOrCooling)
+    {
+        ratio = 0f;
+        isActiveOrCooling = false;
+
+        switch (movementSkillId)
+        {
+            case MovementSkillId.AirDash:
+                if (airDashTimer > 0f && airDashDuration > 0f)
+                {
+                    ratio = Mathf.Clamp01(airDashTimer / airDashDuration);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+
+                if (airDashCooldown > 0f && airDashCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(airDashCooldownTimer / airDashCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+
+                ratio = 1f;
+                return true;
+            case MovementSkillId.JetPack:
+                if (jetPackTimer > 0f)
+                {
+                    float maxTime = Mathf.Max(0.01f, jetPackMaxUpTime);
+                    ratio = Mathf.Clamp01(1f - (jetPackTimer / maxTime));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (jetPackCooldown > 0f && jetPackCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(jetPackCooldownTimer / jetPackCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            case MovementSkillId.Levitation:
+                if (levitationTimer > 0f)
+                {
+                    float maxTime = Mathf.Max(0.01f, levitationMaxTime);
+                    ratio = Mathf.Clamp01(1f - (levitationTimer / maxTime));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (levitationCooldown > 0f && levitationCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(levitationCooldownTimer / levitationCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            case MovementSkillId.Teleport:
+                if (teleportCooldown > 0f && teleportCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(teleportCooldownTimer / teleportCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public bool TryGetUtilityTimerStatus(out float ratio, out bool isActiveOrCooling)
+    {
+        ratio = 0f;
+        isActiveOrCooling = false;
+
+        switch (utilitySkillId)
+        {
+            case UtilitySkillId.SlowTime:
+                if (slowTimeTimer > 0f && slowTimeMaxDuration > 0f && inputSnapshot.SlowTimeHeld)
+                {
+                    ratio = Mathf.Clamp01(slowTimeTimer / Mathf.Max(0.01f, slowTimeMaxDuration));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (slowTimeCooldown > 0f && slowTimeCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(slowTimeCooldownTimer / slowTimeCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            case UtilitySkillId.FreezeTrucks:
+                if (freezeTimer > 0f && freezeDuration > 0f)
+                {
+                    ratio = Mathf.Clamp01(freezeTimer / Mathf.Max(0.01f, freezeDuration));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (freezeCooldown > 0f && freezeCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(freezeCooldownTimer / freezeCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void EnsureTimeSlowVolume()
+    {
+        GameObject existing = GameObject.Find("TimeSlowVolume");
+        if (existing != null)
+        {
+            timeSlowVolume = existing.GetComponent<Volume>();
+            if (timeSlowVolume != null)
+            {
+                Debug.Log("[playerControl] TimeSlowVolume 已绑定，直接使用。");
+                return;
+            }
+        }
+
+        if (timeSlowVolumePrefab == null)
+        {
+            Debug.LogWarning("[playerControl] 未绑定 timeSlowVolumePrefab，无法自动生成 TimeSlowVolume。", this);
+            return;
+        }
+
+        GameObject instance = Instantiate(timeSlowVolumePrefab);
+        instance.name = "TimeSlowVolume";
+        timeSlowVolume = instance.GetComponent<Volume>();
+        if (timeSlowVolume == null)
+        {
+            Debug.LogWarning("[playerControl] timeSlowVolumePrefab 上未找到 Volume 组件。", this);
+        }
+    }
+
+    private void UpdateJetPack(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        if (isDead || IsMenuPaused())
+        {
+            jetPackTimer = 0f;
+            return;
+        }
+
+        if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            jetPackTimer = 0f;
+        }
+
+        if (jetPackCooldownTimer > 0f)
+        {
+            jetPackCooldownTimer = Mathf.Max(0f, jetPackCooldownTimer - deltaTime);
+        }
+
+        bool canUse = preMoveState == PlayerLocomotionState.Airborne
+            && jetPackCooldownTimer <= 0f
+            && jetPackTimer < jetPackMaxUpTime
+            && inputSnapshot.PrimarySkillHeld;
+
+        if (canUse)
+        {
+            jetPackTimer += deltaTime;
+            verticalVelocity = Mathf.Max(verticalVelocity, jetPackUpSpeed);
+            return;
+        }
+
+        if (jetPackTimer > 0f && jetPackCooldownTimer <= 0f)
+        {
+            jetPackCooldownTimer = jetPackCooldown;
+        }
+    }
+
+    private void UpdateLevitation(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        levitationActive = false;
+
+        if (isDead || IsMenuPaused())
+        {
+            levitationTimer = 0f;
+            return;
+        }
+
+        if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            levitationTimer = 0f;
+        }
+
+        if (levitationCooldownTimer > 0f)
+        {
+            levitationCooldownTimer = Mathf.Max(0f, levitationCooldownTimer - deltaTime);
+        }
+
+        bool canUse = preMoveState == PlayerLocomotionState.Airborne
+            && levitationCooldownTimer <= 0f
+            && levitationTimer < levitationMaxTime
+            && inputSnapshot.PrimarySkillHeld;
+
+        if (canUse)
+        {
+            levitationActive = true;
+            levitationTimer += deltaTime;
+            verticalVelocity = 0f;
+            return;
+        }
+
+        if (levitationTimer > 0f && levitationCooldownTimer <= 0f)
+        {
+            levitationCooldownTimer = levitationCooldown;
+        }
+    }
+
+    private void UpdateTeleport(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        if (isDead || IsMenuPaused())
+        {
+            return;
+        }
+
+        if (teleportCooldownTimer > 0f)
+        {
+            teleportCooldownTimer = Mathf.Max(0f, teleportCooldownTimer - deltaTime);
+        }
+
+        if (!inputSnapshot.PrimarySkillPressedThisFrame || teleportCooldownTimer > 0f)
+        {
+            return;
+        }
+
+        if (!TryTeleportToTruck())
+        {
+            return;
+        }
+
+        teleportCooldownTimer = teleportCooldown;
+    }
+
+    private bool TryTeleportToTruck()
+    {
+        Transform originTransform = lookTarget != null ? lookTarget : transform;
+        Vector3 origin = originTransform.position;
+        Vector3 direction = originTransform.forward;
+
+        if (!Physics.Raycast(origin, direction, out RaycastHit hit, teleportRange))
+        {
+            return false;
+        }
+
+        if (!IsTruckHit(hit.collider))
+        {
+            return false;
+        }
+
+        Vector3 targetPosition = hit.point + FixedUp * teleportHeight;
+        if (controller != null)
+        {
+            controller.enabled = false;
+        }
+
+        transform.position = targetPosition;
+        verticalVelocity = 0f;
+
+        if (controller != null)
+        {
+            controller.enabled = true;
+        }
+
+        return true;
+    }
+
+    private bool IsTruckHit(Collider target)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (target.GetComponentInParent<truck_movement>() != null)
+        {
+            return true;
+        }
+
+        Transform tagChild = target.transform.Find("isTruckTag");
+        return tagChild != null && tagChild.CompareTag("truck");
+    }
+
+    private void UpdateFreezeTrucks(float deltaTime)
+    {
+        if (isDead || IsMenuPaused())
+        {
+            UpdateFreezeTrucksCleanup();
+            return;
+        }
+
+        if (freezeCooldownTimer > 0f)
+        {
+            freezeCooldownTimer = Mathf.Max(0f, freezeCooldownTimer - deltaTime);
+        }
+
+        if (freezeTimer > 0f)
+        {
+            freezeTimer = Mathf.Max(0f, freezeTimer - deltaTime);
+            if (freezeTimer <= 0f)
+            {
+                SetTrucksFrozen(false);
+                isFreezingTrucks = false;
+                UpdateSlowTimeVolume(0f);
+            }
+            return;
+        }
+
+        if (!inputSnapshot.SecondarySkillPressedThisFrame || freezeCooldownTimer > 0f)
+        {
+            return;
+        }
+
+        freezeTimer = freezeDuration;
+        freezeCooldownTimer = freezeCooldown;
+        isFreezingTrucks = true;
+        EnsureTimeSlowVolume();
+        UpdateSlowTimeVolume(slowTimeVolumeTargetWeight);
+        SetTrucksFrozen(true);
+    }
+
+    private void UpdateFreezeTrucksCleanup()
+    {
+        if (!isFreezingTrucks)
+        {
+            return;
+        }
+
+        freezeTimer = 0f;
+        isFreezingTrucks = false;
+        SetTrucksFrozen(false);
+        UpdateSlowTimeVolume(0f);
+    }
+
+    private void SetTrucksFrozen(bool frozen)
+    {
+        truck_movement[] trucks = FindObjectsOfType<truck_movement>();
+        for (int i = 0; i < trucks.Length; i++)
+        {
+            trucks[i].SetFrozen(frozen);
+        }
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)

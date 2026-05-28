@@ -17,6 +17,8 @@ public static class SkillSelectionStore
     private const string FileName = "skills.json";
     private const string EmptyDescription = "";
 
+    public static event Action<SkillSelectionData> SelectionChanged;
+
     public static SkillSelectionData Load()
     {
         string path = GetFilePath();
@@ -49,6 +51,7 @@ public static class SkillSelectionStore
         {
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(GetFilePath(), json);
+            SelectionChanged?.Invoke(data);
         }
         catch (Exception ex)
         {
@@ -110,19 +113,59 @@ public static class SkillSelectionStore
 
     public static MovementSkillId ParseMovement(string value)
     {
+        return ResolveMovementId(value);
+    }
+
+    public static UtilitySkillId ParseUtility(string value)
+    {
+        return ResolveUtilityId(value);
+    }
+
+    public static MovementSkillId ResolveMovementId(string value)
+    {
         if (string.IsNullOrEmpty(value))
         {
             return MovementSkillId.None;
         }
 
+        string normalized = value.Replace("_", string.Empty).Replace(" ", string.Empty).ToLowerInvariant();
+        switch (normalized)
+        {
+            case "doublejump":
+                return MovementSkillId.DoubleJump;
+            case "airdash":
+                return MovementSkillId.AirDash;
+            case "jetpack":
+                return MovementSkillId.JetPack;
+            case "levitation":
+                return MovementSkillId.Levitation;
+            case "teleport":
+                return MovementSkillId.Teleport;
+            case "none":
+                return MovementSkillId.None;
+        }
+
         return Enum.TryParse(value, true, out MovementSkillId result) ? result : MovementSkillId.None;
     }
 
-    public static UtilitySkillId ParseUtility(string value)
+    public static UtilitySkillId ResolveUtilityId(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
             return UtilitySkillId.None;
+        }
+
+        string normalized = value.Replace("_", string.Empty).Replace(" ", string.Empty).ToLowerInvariant();
+        switch (normalized)
+        {
+            case "timeslow":
+                return UtilitySkillId.SlowTime;
+            case "freezetrucks":
+                return UtilitySkillId.FreezeTrucks;
+            case "epicmode":
+                return UtilitySkillId.EpicMode;
+            case "none":
+                return UtilitySkillId.None;
         }
 
         return Enum.TryParse(value, true, out UtilitySkillId result) ? result : UtilitySkillId.None;

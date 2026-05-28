@@ -12,6 +12,7 @@ public sealed class PlayerLocomotionRuntime
     private bool canJump;
     private bool wasGrounded;
     private bool jumpQueued;
+    private bool extraJumpQueued;
     private bool extraJumpAvailable;
     private PlayerLocomotionState previousState;
 
@@ -20,6 +21,7 @@ public sealed class PlayerLocomotionRuntime
         canJump = false;
         wasGrounded = isInitiallyGrounded;
         jumpQueued = false;
+        extraJumpQueued = false;
         extraJumpAvailable = false;
         SprintTimer = 0f;
         SprintCooldownTimer = 0f;
@@ -50,6 +52,7 @@ public sealed class PlayerLocomotionRuntime
 
     public bool CanUseAirborneJumpGrace => AirborneJumpGraceTimer > 0f;
     public bool ExtraJumpAvailable => extraJumpAvailable;
+    public bool CanConsumeQueuedJumpInAir => jumpQueued && extraJumpQueued;
 
     public void UpdateBeforeMovement(
         PlayerLocomotionState preMoveState,
@@ -110,6 +113,7 @@ public sealed class PlayerLocomotionRuntime
         {
             canJump = false;
             jumpQueued = false;
+            extraJumpQueued = false;
         }
 
         if (!canSprintSurface)
@@ -137,6 +141,7 @@ public sealed class PlayerLocomotionRuntime
         if (canJump && jumpPressedThisFrame)
         {
             jumpQueued = true;
+            extraJumpQueued = false;
             canJump = false;
         }
 
@@ -144,6 +149,7 @@ public sealed class PlayerLocomotionRuntime
             && extraJumpAvailable && jumpPressedThisFrame)
         {
             jumpQueued = true;
+            extraJumpQueued = true;
             extraJumpAvailable = false;
         }
 

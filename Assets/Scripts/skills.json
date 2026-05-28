@@ -40,7 +40,7 @@
         },
         {
             "name": "epicMode",
-            "description": "Enters a high-power mode.",
+            "description": "gain more scores",
             "cooldown": 0
         }
     ]

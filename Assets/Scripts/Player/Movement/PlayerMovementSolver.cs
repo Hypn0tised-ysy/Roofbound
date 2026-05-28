@@ -75,7 +75,9 @@ public sealed class PlayerMovementSolver
         }
 
         // 允许接地跳，或在离开平台后的短暂宽限窗口内触发一次跳跃。
-        bool canConsumeJump = isGrounded || locomotionRuntime.CanUseAirborneJumpGrace;
+        bool canConsumeJump = isGrounded
+            || locomotionRuntime.CanUseAirborneJumpGrace
+            || locomotionRuntime.CanConsumeQueuedJumpInAir;
         if (canConsumeJump && locomotionRuntime.TryConsumeJumpQueued())
         {
             // 仅接地时锁存当前平台速度；空中宽限跳不应覆盖既有继承速度。
