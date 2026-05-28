@@ -7,5 +7,7 @@ public struct PlayerInputSnapshot
     public bool JumpPressedThisFrame;
     public bool SprintPressed;
     public bool PrimarySkillPressedThisFrame;
+    public bool PrimarySkillHeld;
     public bool SlowTimeHeld;
+    public bool SecondarySkillPressedThisFrame;
 }

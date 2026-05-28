@@ -161,11 +161,43 @@ public class playerControl : MonoBehaviour
     private float slowTimeFixedDeltaScale;
     private float slowTimeVolumeTargetWeight;
     private float slowTimeVolumeLerpSpeed;
+    private float slowTimeMaxDuration;
+    private float slowTimeCooldown;
+
+    private float jetPackUpSpeed;
+    private float jetPackMaxUpTime;
+    private float jetPackCooldown;
+
+    private float levitationMaxTime;
+    private float levitationCooldown;
+
+    private float teleportRange;
+    private float teleportHeight;
+    private float teleportCooldown;
+
+    private float freezeDuration;
+    private float freezeCooldown;
 
     private float airDashTimer;
     private float airDashCooldownTimer;
     private bool airDashAvailable;
     private Vector3 airDashDirection;
+
+    private float jetPackTimer;
+    private float jetPackCooldownTimer;
+
+    private float levitationTimer;
+    private float levitationCooldownTimer;
+    private bool levitationActive;
+
+    private float teleportCooldownTimer;
+
+    private float freezeTimer;
+    private float freezeCooldownTimer;
+    private bool isFreezingTrucks;
+
+    private float slowTimeTimer;
+    private float slowTimeCooldownTimer;
 
     private float baseFixedDeltaTime;
 
@@ -292,8 +324,8 @@ public class playerControl : MonoBehaviour
         isGrounded = controller != null && controller.isGrounded;
         PlayerLocomotionState preMoveState = ResolveLocomotionState();
 
-        UpdateAirDash(preMoveState, Time.deltaTime);
-        UpdateSlowTime();
+        UpdateMovementSkill(preMoveState, Time.deltaTime);
+        UpdateUtilitySkill(Time.deltaTime);
 
         bool allowExtraJump = movementSkillId == MovementSkillId.DoubleJump && !isDead && !IsMenuPaused();
         locomotionRuntime.UpdateBeforeMovement(
@@ -399,23 +431,69 @@ public class playerControl : MonoBehaviour
     private void UpdateMovement()
     {
         PlayerInputSnapshot movementSnapshot = inputSnapshot;
-        if (IsAirDashing)
+        if (IsAirDashing || levitationActive)
         {
             movementSnapshot.Move = Vector2.zero;
         }
+
+        float gravity = levitationActive ? 0f : gravityAcceleration;
 
         movementSolver.Step(
             movementSnapshot,
             locomotionRuntime,
             speed,
             sprintMultiplier,
-            gravityAcceleration,
+            gravity,
             groundedVerticalVelocity,
             jumpSpeed,
             Time.deltaTime,
             ref isGrounded,
             ref verticalVelocity,
             ref relativeHorizontalVelocity);
+    }
+
+    private void UpdateMovementSkill(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        ApplySkillParameters();
+
+        switch (movementSkillId)
+        {
+            case MovementSkillId.AirDash:
+                UpdateAirDash(preMoveState, deltaTime);
+                break;
+            case MovementSkillId.JetPack:
+                UpdateJetPack(preMoveState, deltaTime);
+                break;
+            case MovementSkillId.Levitation:
+                UpdateLevitation(preMoveState, deltaTime);
+                break;
+            case MovementSkillId.Teleport:
+                UpdateTeleport(preMoveState, deltaTime);
+                break;
+            default:
+                airDashTimer = 0f;
+                levitationActive = false;
+                break;
+        }
+    }
+
+    private void UpdateUtilitySkill(float deltaTime)
+    {
+        ApplySkillParameters();
+
+        switch (utilitySkillId)
+        {
+            case UtilitySkillId.SlowTime:
+                UpdateSlowTime();
+                break;
+            case UtilitySkillId.FreezeTrucks:
+                UpdateFreezeTrucks(deltaTime);
+                break;
+            default:
+                ResetSlowTime();
+                UpdateFreezeTrucksCleanup();
+                break;
+        }
     }
 
     private void UpdateAirDash(PlayerLocomotionState preMoveState, float deltaTime)
@@ -482,20 +560,39 @@ public class playerControl : MonoBehaviour
 
     private void UpdateSlowTime()
     {
-        ApplySkillParameters();
-
         if (utilitySkillId != UtilitySkillId.SlowTime || isDead || IsMenuPaused())
         {
             ResetSlowTime();
             return;
         }
 
-        if (inputSnapshot.SlowTimeHeld)
+        if (slowTimeCooldownTimer > 0f)
         {
+            slowTimeCooldownTimer = Mathf.Max(0f, slowTimeCooldownTimer - Time.deltaTime);
+        }
+
+        if (slowTimeTimer <= 0f && slowTimeCooldownTimer <= 0f)
+        {
+            slowTimeTimer = slowTimeMaxDuration;
+        }
+
+        if (inputSnapshot.SlowTimeHeld && slowTimeCooldownTimer <= 0f && slowTimeTimer > 0f)
+        {
+            slowTimeTimer = Mathf.Max(0f, slowTimeTimer - Time.deltaTime);
             ApplySlowTime();
+
+            if (slowTimeTimer <= 0f)
+            {
+                slowTimeCooldownTimer = slowTimeCooldown;
+            }
         }
         else
         {
+            if (slowTimeTimer < slowTimeMaxDuration && slowTimeCooldownTimer <= 0f)
+            {
+                slowTimeCooldownTimer = slowTimeCooldown;
+            }
+
             ResetSlowTime();
         }
     }
@@ -606,6 +703,134 @@ public class playerControl : MonoBehaviour
         slowTimeFixedDeltaScale = skillParameters.slowTimeFixedDeltaScale;
         slowTimeVolumeTargetWeight = skillParameters.slowTimeVolumeTargetWeight;
         slowTimeVolumeLerpSpeed = skillParameters.slowTimeVolumeLerpSpeed;
+        slowTimeMaxDuration = skillParameters.slowTimeMaxDuration;
+        slowTimeCooldown = skillParameters.slowTimeCooldown;
+
+        jetPackUpSpeed = skillParameters.jetPackUpSpeed;
+        jetPackMaxUpTime = skillParameters.jetPackMaxUpTime;
+        jetPackCooldown = skillParameters.jetPackCooldown;
+
+        levitationMaxTime = skillParameters.levitationMaxTime;
+        levitationCooldown = skillParameters.levitationCooldown;
+
+        teleportRange = skillParameters.teleportRange;
+        teleportHeight = skillParameters.teleportHeight;
+        teleportCooldown = skillParameters.teleportCooldown;
+
+        freezeDuration = skillParameters.freezeDuration;
+        freezeCooldown = skillParameters.freezeCooldown;
+    }
+
+    public bool TryGetMovementTimerStatus(out float ratio, out bool isActiveOrCooling)
+    {
+        ratio = 0f;
+        isActiveOrCooling = false;
+
+        switch (movementSkillId)
+        {
+            case MovementSkillId.AirDash:
+                if (airDashTimer > 0f && airDashDuration > 0f)
+                {
+                    ratio = Mathf.Clamp01(airDashTimer / airDashDuration);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+
+                if (airDashCooldown > 0f && airDashCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(airDashCooldownTimer / airDashCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+
+                ratio = 1f;
+                return true;
+            case MovementSkillId.JetPack:
+                if (jetPackTimer > 0f)
+                {
+                    float maxTime = Mathf.Max(0.01f, jetPackMaxUpTime);
+                    ratio = Mathf.Clamp01(1f - (jetPackTimer / maxTime));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (jetPackCooldown > 0f && jetPackCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(jetPackCooldownTimer / jetPackCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            case MovementSkillId.Levitation:
+                if (levitationTimer > 0f)
+                {
+                    float maxTime = Mathf.Max(0.01f, levitationMaxTime);
+                    ratio = Mathf.Clamp01(1f - (levitationTimer / maxTime));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (levitationCooldown > 0f && levitationCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(levitationCooldownTimer / levitationCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            case MovementSkillId.Teleport:
+                if (teleportCooldown > 0f && teleportCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(teleportCooldownTimer / teleportCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public bool TryGetUtilityTimerStatus(out float ratio, out bool isActiveOrCooling)
+    {
+        ratio = 0f;
+        isActiveOrCooling = false;
+
+        switch (utilitySkillId)
+        {
+            case UtilitySkillId.SlowTime:
+                if (slowTimeTimer > 0f && slowTimeMaxDuration > 0f && inputSnapshot.SlowTimeHeld)
+                {
+                    ratio = Mathf.Clamp01(slowTimeTimer / Mathf.Max(0.01f, slowTimeMaxDuration));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (slowTimeCooldown > 0f && slowTimeCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(slowTimeCooldownTimer / slowTimeCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            case UtilitySkillId.FreezeTrucks:
+                if (freezeTimer > 0f && freezeDuration > 0f)
+                {
+                    ratio = Mathf.Clamp01(freezeTimer / Mathf.Max(0.01f, freezeDuration));
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                if (freezeCooldown > 0f && freezeCooldownTimer > 0f)
+                {
+                    ratio = 1f - Mathf.Clamp01(freezeCooldownTimer / freezeCooldown);
+                    isActiveOrCooling = true;
+                    return true;
+                }
+                ratio = 1f;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void EnsureTimeSlowVolume()
@@ -633,6 +858,215 @@ public class playerControl : MonoBehaviour
         if (timeSlowVolume == null)
         {
             Debug.LogWarning("[playerControl] timeSlowVolumePrefab 上未找到 Volume 组件。", this);
+        }
+    }
+
+    private void UpdateJetPack(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        if (isDead || IsMenuPaused())
+        {
+            jetPackTimer = 0f;
+            return;
+        }
+
+        if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            jetPackTimer = 0f;
+        }
+
+        if (jetPackCooldownTimer > 0f)
+        {
+            jetPackCooldownTimer = Mathf.Max(0f, jetPackCooldownTimer - deltaTime);
+        }
+
+        bool canUse = preMoveState == PlayerLocomotionState.Airborne
+            && jetPackCooldownTimer <= 0f
+            && jetPackTimer < jetPackMaxUpTime
+            && inputSnapshot.PrimarySkillHeld;
+
+        if (canUse)
+        {
+            jetPackTimer += deltaTime;
+            verticalVelocity = Mathf.Max(verticalVelocity, jetPackUpSpeed);
+            return;
+        }
+
+        if (jetPackTimer > 0f && jetPackCooldownTimer <= 0f)
+        {
+            jetPackCooldownTimer = jetPackCooldown;
+        }
+    }
+
+    private void UpdateLevitation(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        levitationActive = false;
+
+        if (isDead || IsMenuPaused())
+        {
+            levitationTimer = 0f;
+            return;
+        }
+
+        if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            levitationTimer = 0f;
+        }
+
+        if (levitationCooldownTimer > 0f)
+        {
+            levitationCooldownTimer = Mathf.Max(0f, levitationCooldownTimer - deltaTime);
+        }
+
+        bool canUse = preMoveState == PlayerLocomotionState.Airborne
+            && levitationCooldownTimer <= 0f
+            && levitationTimer < levitationMaxTime
+            && inputSnapshot.PrimarySkillHeld;
+
+        if (canUse)
+        {
+            levitationActive = true;
+            levitationTimer += deltaTime;
+            verticalVelocity = 0f;
+            return;
+        }
+
+        if (levitationTimer > 0f && levitationCooldownTimer <= 0f)
+        {
+            levitationCooldownTimer = levitationCooldown;
+        }
+    }
+
+    private void UpdateTeleport(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        if (isDead || IsMenuPaused())
+        {
+            return;
+        }
+
+        if (teleportCooldownTimer > 0f)
+        {
+            teleportCooldownTimer = Mathf.Max(0f, teleportCooldownTimer - deltaTime);
+        }
+
+        if (!inputSnapshot.PrimarySkillPressedThisFrame || teleportCooldownTimer > 0f)
+        {
+            return;
+        }
+
+        if (!TryTeleportToTruck())
+        {
+            return;
+        }
+
+        teleportCooldownTimer = teleportCooldown;
+    }
+
+    private bool TryTeleportToTruck()
+    {
+        Transform originTransform = lookTarget != null ? lookTarget : transform;
+        Vector3 origin = originTransform.position;
+        Vector3 direction = originTransform.forward;
+
+        if (!Physics.Raycast(origin, direction, out RaycastHit hit, teleportRange))
+        {
+            return false;
+        }
+
+        if (!IsTruckHit(hit.collider))
+        {
+            return false;
+        }
+
+        Vector3 targetPosition = hit.point + FixedUp * teleportHeight;
+        if (controller != null)
+        {
+            controller.enabled = false;
+        }
+
+        transform.position = targetPosition;
+        verticalVelocity = 0f;
+
+        if (controller != null)
+        {
+            controller.enabled = true;
+        }
+
+        return true;
+    }
+
+    private bool IsTruckHit(Collider target)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (target.GetComponentInParent<truck_movement>() != null)
+        {
+            return true;
+        }
+
+        Transform tagChild = target.transform.Find("isTruckTag");
+        return tagChild != null && tagChild.CompareTag("truck");
+    }
+
+    private void UpdateFreezeTrucks(float deltaTime)
+    {
+        if (isDead || IsMenuPaused())
+        {
+            UpdateFreezeTrucksCleanup();
+            return;
+        }
+
+        if (freezeCooldownTimer > 0f)
+        {
+            freezeCooldownTimer = Mathf.Max(0f, freezeCooldownTimer - deltaTime);
+        }
+
+        if (freezeTimer > 0f)
+        {
+            freezeTimer = Mathf.Max(0f, freezeTimer - deltaTime);
+            if (freezeTimer <= 0f)
+            {
+                SetTrucksFrozen(false);
+                isFreezingTrucks = false;
+                UpdateSlowTimeVolume(0f);
+            }
+            return;
+        }
+
+        if (!inputSnapshot.SecondarySkillPressedThisFrame || freezeCooldownTimer > 0f)
+        {
+            return;
+        }
+
+        freezeTimer = freezeDuration;
+        freezeCooldownTimer = freezeCooldown;
+        isFreezingTrucks = true;
+        EnsureTimeSlowVolume();
+        UpdateSlowTimeVolume(slowTimeVolumeTargetWeight);
+        SetTrucksFrozen(true);
+    }
+
+    private void UpdateFreezeTrucksCleanup()
+    {
+        if (!isFreezingTrucks)
+        {
+            return;
+        }
+
+        freezeTimer = 0f;
+        isFreezingTrucks = false;
+        SetTrucksFrozen(false);
+        UpdateSlowTimeVolume(0f);
+    }
+
+    private void SetTrucksFrozen(bool frozen)
+    {
+        truck_movement[] trucks = FindObjectsOfType<truck_movement>();
+        for (int i = 0; i < trucks.Length; i++)
+        {
+            trucks[i].SetFrozen(frozen);
         }
     }
 

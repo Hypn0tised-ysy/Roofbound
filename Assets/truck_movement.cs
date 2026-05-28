@@ -28,6 +28,10 @@ public class truck_movement : MonoBehaviour
     [Tooltip("侧翻时施加的角速度阻尼系数（加速度模式，等效 alpha = -k * w）。")]
     [SerializeField] private float flippedAngularDampingCoefficient = 2f;
 
+    [Header("技能状态")]
+    [SerializeField] private bool isFrozen;
+    private float cachedSpeed;
+
     private Rigidbody rb;
 
     private void Awake()
@@ -43,6 +47,11 @@ public class truck_movement : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (isFrozen)
+        {
+            return;
+        }
+
         if (enableFlipDetection && IsFlipped())
         {
             ApplyFlipDragForce();
@@ -61,6 +70,25 @@ public class truck_movement : MonoBehaviour
         }
 
         speed = Mathf.Max(0f, runtimeSpeed);
+    }
+
+    public void SetFrozen(bool frozen)
+    {
+        if (isFrozen == frozen)
+        {
+            return;
+        }
+
+        isFrozen = frozen;
+        if (isFrozen)
+        {
+            cachedSpeed = speed;
+            speed = 0f;
+        }
+        else
+        {
+            speed = cachedSpeed;
+        }
     }
 
     private void ApplyConfigAsset()
