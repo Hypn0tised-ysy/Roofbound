@@ -717,6 +717,12 @@ MonoBehaviour:
   maxPitch: 75
   jumpSpeed: 7
   airborneJumpGraceDuration: 0.12
+  useSkillOverrides: 1
+  overrideMovementSkillId: 2
+  overrideUtilitySkillId: 1
+  skillParameters: {fileID: 11400000, guid: 6cc096407866a084485cf4b8fa5591dc, type: 2}
+  timeSlowVolume: {fileID: 5173824020832708129, guid: b5caaf904eb1d1d46a6dcb7cc5463b9f, type: 3}
+  timeSlowVolumePrefab: {fileID: 5173824020832708128, guid: b5caaf904eb1d1d46a6dcb7cc5463b9f, type: 3}
   gravityAcceleration: 5000
   groundedVerticalVelocity: -2
   lockInputAfterGroundDead: 0

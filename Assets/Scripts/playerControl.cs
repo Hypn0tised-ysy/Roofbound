@@ -1,9 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// TODO: 后续可将 canJump 迁移到状态机(FSM)。
-// TODO: 后续可将输入动作迁移到 InputActionAsset。
-
 /// <summary>
 /// 玩家基础控制器：
 /// 1. 使用 Unity Input System 读取 WASD（2D 方向）输入。
@@ -21,6 +18,8 @@ public class playerControl : MonoBehaviour
 
     public bool IsAirDashing => airDashTimer > 0f;
     public float AirDashFovDelta => airDashFovDelta;
+    public string CurrentMovementSkillName => movementSkillName;
+    public string CurrentUtilitySkillName => utilitySkillName;
 
     public float CurrentHorizontalSpeed
     {
@@ -92,22 +91,14 @@ public class playerControl : MonoBehaviour
     [SerializeField] private float airborneJumpGraceDuration = 0.12f;
 
     [Header("技能选择")]
-    [SerializeField] private bool useSkillOverrides = false;
+    [SerializeField] private bool useSkillOverrides = true;
     [SerializeField] private MovementSkillId overrideMovementSkillId = MovementSkillId.None;
     [SerializeField] private UtilitySkillId overrideUtilitySkillId = UtilitySkillId.None;
 
-    [Header("空中冲刺技能")]
-    [SerializeField] private float airDashSpeed = 12f;
-    [SerializeField] private float airDashDuration = 0.25f;
-    [SerializeField] private float airDashCooldown = 0.8f;
-    [SerializeField] private float airDashFovDelta = 8f;
-
-    [Header("时间变慢技能")]
-    [SerializeField] private float slowTimeScale = 0.2f;
-    [SerializeField] private float slowTimeFixedDeltaScale = 0.2f;
-    [SerializeField] private float slowTimeVolumeTargetWeight = 0.3f;
-    [SerializeField] private float slowTimeVolumeLerpSpeed = 6f;
+    [Header("技能参数来源")]
+    [SerializeField] private PlayerSkillParameters skillParameters;
     [SerializeField] private Volume timeSlowVolume;
+    [SerializeField] private GameObject timeSlowVolumePrefab;
 
     [Header("重力参数")]
     [Tooltip("重力加速度（单位：m/s^2）。")]
@@ -158,6 +149,18 @@ public class playerControl : MonoBehaviour
 
     private MovementSkillId movementSkillId = MovementSkillId.None;
     private UtilitySkillId utilitySkillId = UtilitySkillId.None;
+    private string movementSkillName = "None";
+    private string utilitySkillName = "None";
+
+    private float airDashSpeed;
+    private float airDashDuration;
+    private float airDashCooldown;
+    private float airDashFovDelta;
+
+    private float slowTimeScale;
+    private float slowTimeFixedDeltaScale;
+    private float slowTimeVolumeTargetWeight;
+    private float slowTimeVolumeLerpSpeed;
 
     private float airDashTimer;
     private float airDashCooldownTimer;
@@ -209,6 +212,8 @@ public class playerControl : MonoBehaviour
 
         locomotionRuntime = new PlayerLocomotionRuntime();
 
+        ApplySkillParameters();
+
         LoadSkillSelection();
         ResolveSkillOverrides();
 
@@ -228,6 +233,11 @@ public class playerControl : MonoBehaviour
             }
         }
 
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            EnsureTimeSlowVolume();
+        }
+
         InitializeLocomotionStateMachine();
     }
 
@@ -237,6 +247,8 @@ public class playerControl : MonoBehaviour
     private void OnEnable()
     {
         inputReader?.Enable();
+
+        SkillSelectionStore.SelectionChanged += OnSkillSelectionChanged;
 
         if (levelControllerRef != null)
         {
@@ -250,6 +262,8 @@ public class playerControl : MonoBehaviour
         {
             levelControllerRef.game_dead -= OnGameDead;
         }
+
+        SkillSelectionStore.SelectionChanged -= OnSkillSelectionChanged;
 
         inputReader?.Disable();
     }
@@ -406,6 +420,8 @@ public class playerControl : MonoBehaviour
 
     private void UpdateAirDash(PlayerLocomotionState preMoveState, float deltaTime)
     {
+        ApplySkillParameters();
+
         if (movementSkillId != MovementSkillId.AirDash || isDead || IsMenuPaused())
         {
             airDashTimer = 0f;
@@ -466,6 +482,8 @@ public class playerControl : MonoBehaviour
 
     private void UpdateSlowTime()
     {
+        ApplySkillParameters();
+
         if (utilitySkillId != UtilitySkillId.SlowTime || isDead || IsMenuPaused())
         {
             ResetSlowTime();
@@ -521,19 +539,101 @@ public class playerControl : MonoBehaviour
     private void LoadSkillSelection()
     {
         SkillSelectionData data = SkillSelectionStore.Load();
-        movementSkillId = SkillSelectionStore.ParseMovement(data.movementSkillId);
-        utilitySkillId = SkillSelectionStore.ParseUtility(data.utilitySkillId);
+        ApplySkillSelection(data);
+    }
+
+    private void OnSkillSelectionChanged(SkillSelectionData data)
+    {
+        ApplySkillSelection(data);
+    }
+
+    private void ApplySkillSelection(SkillSelectionData data)
+    {
+        if (data == null)
+        {
+            movementSkillName = "None";
+            utilitySkillName = "None";
+            movementSkillId = MovementSkillId.None;
+            utilitySkillId = UtilitySkillId.None;
+            return;
+        }
+
+        movementSkillName = string.IsNullOrEmpty(data.movementSkillId) ? "None" : data.movementSkillId;
+        utilitySkillName = string.IsNullOrEmpty(data.utilitySkillId) ? "None" : data.utilitySkillId;
+        movementSkillId = SkillSelectionStore.ResolveMovementId(movementSkillName);
+        utilitySkillId = SkillSelectionStore.ResolveUtilityId(utilitySkillName);
+
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            EnsureTimeSlowVolume();
+        }
     }
 
     private void ResolveSkillOverrides()
     {
         if (!useSkillOverrides)
         {
+            Debug.Log("[playerControl] 技能覆盖已关闭，使用存档的技能选择。");
             return;
         }
 
+        Debug.Log($"[playerControl] 使用技能覆盖：移动技能={overrideMovementSkillId}, 实用技能={overrideUtilitySkillId}");
         movementSkillId = overrideMovementSkillId;
         utilitySkillId = overrideUtilitySkillId;
+        movementSkillName = overrideMovementSkillId.ToString();
+        utilitySkillName = overrideUtilitySkillId.ToString();
+
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            Debug.Log("[playerControl] 实用技能覆盖为 SlowTime，确保 TimeSlowVolume 已准备就绪。");
+            EnsureTimeSlowVolume();
+        }
+    }
+
+    private void ApplySkillParameters()
+    {
+        if (skillParameters == null)
+        {
+            return;
+        }
+
+        airDashSpeed = skillParameters.airDashSpeed;
+        airDashDuration = skillParameters.airDashDuration;
+        airDashCooldown = skillParameters.airDashCooldown;
+        airDashFovDelta = skillParameters.airDashFovDelta;
+
+        slowTimeScale = skillParameters.slowTimeScale;
+        slowTimeFixedDeltaScale = skillParameters.slowTimeFixedDeltaScale;
+        slowTimeVolumeTargetWeight = skillParameters.slowTimeVolumeTargetWeight;
+        slowTimeVolumeLerpSpeed = skillParameters.slowTimeVolumeLerpSpeed;
+    }
+
+    private void EnsureTimeSlowVolume()
+    {
+        GameObject existing = GameObject.Find("TimeSlowVolume");
+        if (existing != null)
+        {
+            timeSlowVolume = existing.GetComponent<Volume>();
+            if (timeSlowVolume != null)
+            {
+                Debug.Log("[playerControl] TimeSlowVolume 已绑定，直接使用。");
+                return;
+            }
+        }
+
+        if (timeSlowVolumePrefab == null)
+        {
+            Debug.LogWarning("[playerControl] 未绑定 timeSlowVolumePrefab，无法自动生成 TimeSlowVolume。", this);
+            return;
+        }
+
+        GameObject instance = Instantiate(timeSlowVolumePrefab);
+        instance.name = "TimeSlowVolume";
+        timeSlowVolume = instance.GetComponent<Volume>();
+        if (timeSlowVolume == null)
+        {
+            Debug.LogWarning("[playerControl] timeSlowVolumePrefab 上未找到 Volume 组件。", this);
+        }
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
