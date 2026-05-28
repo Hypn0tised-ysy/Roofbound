@@ -11,6 +11,11 @@ public class GameOver : MonoBehaviour
         // 玩家死了，需要把鼠标指针还给玩家，方便点击按钮
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (UI_Controller.Instance != null)
+        {
+            UI_Controller.Instance.SetMenuPaused(false);
+        }
     }
 
     public void HidePanel()

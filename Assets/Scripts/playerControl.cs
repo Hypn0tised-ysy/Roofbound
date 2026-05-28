@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 // TODO: 后续可将 canJump 迁移到状态机(FSM)。
 // TODO: 后续可将输入动作迁移到 InputActionAsset。
@@ -17,6 +18,9 @@ using UnityEngine;
 public class playerControl : MonoBehaviour
 {
     public bool IsSprinting => locomotionRuntime != null && locomotionRuntime.IsSprinting();
+
+    public bool IsAirDashing => airDashTimer > 0f;
+    public float AirDashFovDelta => airDashFovDelta;
 
     public float CurrentHorizontalSpeed
     {
@@ -87,6 +91,24 @@ public class playerControl : MonoBehaviour
     [Tooltip("从平台离开进入空中后，仍允许起跳的宽限时间（秒）。")]
     [SerializeField] private float airborneJumpGraceDuration = 0.12f;
 
+    [Header("技能选择")]
+    [SerializeField] private bool useSkillOverrides = false;
+    [SerializeField] private MovementSkillId overrideMovementSkillId = MovementSkillId.None;
+    [SerializeField] private UtilitySkillId overrideUtilitySkillId = UtilitySkillId.None;
+
+    [Header("空中冲刺技能")]
+    [SerializeField] private float airDashSpeed = 12f;
+    [SerializeField] private float airDashDuration = 0.25f;
+    [SerializeField] private float airDashCooldown = 0.8f;
+    [SerializeField] private float airDashFovDelta = 8f;
+
+    [Header("时间变慢技能")]
+    [SerializeField] private float slowTimeScale = 0.2f;
+    [SerializeField] private float slowTimeFixedDeltaScale = 0.2f;
+    [SerializeField] private float slowTimeVolumeTargetWeight = 0.3f;
+    [SerializeField] private float slowTimeVolumeLerpSpeed = 6f;
+    [SerializeField] private Volume timeSlowVolume;
+
     [Header("重力参数")]
     [Tooltip("重力加速度（单位：m/s^2）。")]
     [SerializeField] private float gravityAcceleration = 20f;
@@ -132,6 +154,17 @@ public class playerControl : MonoBehaviour
 
     // 死亡后锁定输入读取。
     private bool isInputLockedByDeath;
+    private bool isDead;
+
+    private MovementSkillId movementSkillId = MovementSkillId.None;
+    private UtilitySkillId utilitySkillId = UtilitySkillId.None;
+
+    private float airDashTimer;
+    private float airDashCooldownTimer;
+    private bool airDashAvailable;
+    private Vector3 airDashDirection;
+
+    private float baseFixedDeltaTime;
 
     // 角色移动状态机（保存当前状态与切换事件）。
     private FiniteStateMachine<PlayerLocomotionState> locomotionFsm;
@@ -151,6 +184,8 @@ public class playerControl : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
+
+        baseFixedDeltaTime = Time.fixedDeltaTime;
 
         ApplyConfigAsset();
 
@@ -174,11 +209,24 @@ public class playerControl : MonoBehaviour
 
         locomotionRuntime = new PlayerLocomotionRuntime();
 
+        LoadSkillSelection();
+        ResolveSkillOverrides();
+
         // 初始化跳跃状态：若开局即接地，则允许跳跃。
         isGrounded = controller != null && controller.isGrounded;
         verticalVelocity = 0f;
         relativeHorizontalVelocity = Vector3.zero;
         locomotionRuntime.Initialize(isGrounded);
+
+        airDashAvailable = true;
+        if (timeSlowVolume == null)
+        {
+            GameObject volumeObject = GameObject.Find("TimeSlowVolume");
+            if (volumeObject != null)
+            {
+                timeSlowVolume = volumeObject.GetComponent<Volume>();
+            }
+        }
 
         InitializeLocomotionStateMachine();
     }
@@ -229,6 +277,11 @@ public class playerControl : MonoBehaviour
 
         isGrounded = controller != null && controller.isGrounded;
         PlayerLocomotionState preMoveState = ResolveLocomotionState();
+
+        UpdateAirDash(preMoveState, Time.deltaTime);
+        UpdateSlowTime();
+
+        bool allowExtraJump = movementSkillId == MovementSkillId.DoubleJump && !isDead && !IsMenuPaused();
         locomotionRuntime.UpdateBeforeMovement(
             preMoveState,
             verticalVelocity,
@@ -237,6 +290,7 @@ public class playerControl : MonoBehaviour
             sprintDuration,
             sprintCooldown,
             airborneJumpGraceDuration,
+            allowExtraJump,
             Time.deltaTime);
 
         UpdateMovement();
@@ -294,6 +348,9 @@ public class playerControl : MonoBehaviour
 
     private void OnGameDead()
     {
+        isDead = true;
+        ResetSlowTime();
+
         if (!lockInputAfterGroundDead)
         {
             return;
@@ -327,8 +384,14 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void UpdateMovement()
     {
+        PlayerInputSnapshot movementSnapshot = inputSnapshot;
+        if (IsAirDashing)
+        {
+            movementSnapshot.Move = Vector2.zero;
+        }
+
         movementSolver.Step(
-            inputSnapshot,
+            movementSnapshot,
             locomotionRuntime,
             speed,
             sprintMultiplier,
@@ -339,6 +402,138 @@ public class playerControl : MonoBehaviour
             ref isGrounded,
             ref verticalVelocity,
             ref relativeHorizontalVelocity);
+    }
+
+    private void UpdateAirDash(PlayerLocomotionState preMoveState, float deltaTime)
+    {
+        if (movementSkillId != MovementSkillId.AirDash || isDead || IsMenuPaused())
+        {
+            airDashTimer = 0f;
+            airDashCooldownTimer = 0f;
+            airDashAvailable = false;
+            return;
+        }
+
+        if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            airDashAvailable = true;
+            airDashTimer = 0f;
+        }
+
+        if (airDashCooldownTimer > 0f)
+        {
+            airDashCooldownTimer = Mathf.Max(0f, airDashCooldownTimer - deltaTime);
+        }
+
+        if (airDashTimer > 0f)
+        {
+            airDashTimer = Mathf.Max(0f, airDashTimer - deltaTime);
+            relativeHorizontalVelocity = airDashDirection * airDashSpeed;
+            return;
+        }
+
+        bool canStartDash = preMoveState == PlayerLocomotionState.Airborne
+            && airDashAvailable
+            && airDashCooldownTimer <= 0f
+            && inputSnapshot.PrimarySkillPressedThisFrame;
+
+        if (!canStartDash)
+        {
+            return;
+        }
+
+        airDashAvailable = false;
+        airDashTimer = airDashDuration;
+        airDashCooldownTimer = airDashCooldown;
+        airDashDirection = ResolveAirDashDirection();
+        relativeHorizontalVelocity = airDashDirection * airDashSpeed;
+    }
+
+    private Vector3 ResolveAirDashDirection()
+    {
+        Vector2 input = inputSnapshot.Move;
+        Vector3 right = Vector3.Cross(lookController.PlanarForward, FixedUp).normalized;
+        Vector3 moveForward = Vector3.Cross(FixedUp, right).normalized;
+
+        Vector3 rawMove = moveForward * input.y - right * input.x;
+        if (rawMove.sqrMagnitude > 0.0001f)
+        {
+            return rawMove.normalized;
+        }
+
+        return lookController.PlanarForward;
+    }
+
+    private void UpdateSlowTime()
+    {
+        if (utilitySkillId != UtilitySkillId.SlowTime || isDead || IsMenuPaused())
+        {
+            ResetSlowTime();
+            return;
+        }
+
+        if (inputSnapshot.SlowTimeHeld)
+        {
+            ApplySlowTime();
+        }
+        else
+        {
+            ResetSlowTime();
+        }
+    }
+
+    private void ApplySlowTime()
+    {
+        Time.timeScale = slowTimeScale;
+        Time.fixedDeltaTime = baseFixedDeltaTime * slowTimeFixedDeltaScale;
+        UpdateSlowTimeVolume(slowTimeVolumeTargetWeight);
+    }
+
+    private void ResetSlowTime()
+    {
+        UpdateSlowTimeVolume(0f);
+
+        if (IsMenuPaused())
+        {
+            return;
+        }
+
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = baseFixedDeltaTime;
+    }
+
+    private void UpdateSlowTimeVolume(float targetWeight)
+    {
+        if (timeSlowVolume == null)
+        {
+            return;
+        }
+
+        float step = slowTimeVolumeLerpSpeed * Time.unscaledDeltaTime;
+        timeSlowVolume.weight = Mathf.MoveTowards(timeSlowVolume.weight, targetWeight, step);
+    }
+
+    private bool IsMenuPaused()
+    {
+        return UI_Controller.Instance != null && UI_Controller.Instance.IsMenuPaused;
+    }
+
+    private void LoadSkillSelection()
+    {
+        SkillSelectionData data = SkillSelectionStore.Load();
+        movementSkillId = SkillSelectionStore.ParseMovement(data.movementSkillId);
+        utilitySkillId = SkillSelectionStore.ParseUtility(data.utilitySkillId);
+    }
+
+    private void ResolveSkillOverrides()
+    {
+        if (!useSkillOverrides)
+        {
+            return;
+        }
+
+        movementSkillId = overrideMovementSkillId;
+        utilitySkillId = overrideUtilitySkillId;
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)

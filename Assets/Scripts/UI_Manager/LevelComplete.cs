@@ -18,6 +18,11 @@ public class LevelComplete : MonoBehaviour
         // 呼出鼠标点按钮
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (UI_Controller.Instance != null)
+        {
+            UI_Controller.Instance.SetMenuPaused(true);
+        }
     }
 
     // 点击 "Main Menu" 按钮

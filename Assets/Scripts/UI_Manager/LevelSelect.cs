@@ -31,6 +31,11 @@ public class LevelSelect : MonoBehaviour
     public void ShowPanel()
     {
         gameObject.SetActive(true);
+
+        if (UI_Controller.Instance != null)
+        {
+            UI_Controller.Instance.SetMenuPaused(true);
+        }
     }
     // Update is called once per frame
     void Update()
