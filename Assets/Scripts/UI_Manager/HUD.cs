@@ -18,6 +18,11 @@ public class HUD : MonoBehaviour
         // 游戏内隐藏鼠标
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        if (UI_Controller.Instance != null)
+        {
+            UI_Controller.Instance.SetMenuPaused(false);
+        }
     }
 
     // 游戏结束(通关/死亡)时调用，并返回当前耗时

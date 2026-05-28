@@ -12,6 +12,7 @@ public sealed class PlayerLocomotionRuntime
     private bool canJump;
     private bool wasGrounded;
     private bool jumpQueued;
+    private bool extraJumpAvailable;
     private PlayerLocomotionState previousState;
 
     public void Initialize(bool isInitiallyGrounded)
@@ -19,6 +20,7 @@ public sealed class PlayerLocomotionRuntime
         canJump = false;
         wasGrounded = isInitiallyGrounded;
         jumpQueued = false;
+        extraJumpAvailable = false;
         SprintTimer = 0f;
         SprintCooldownTimer = 0f;
         AirborneJumpGraceTimer = 0f;
@@ -47,6 +49,7 @@ public sealed class PlayerLocomotionRuntime
     public bool CanJump => canJump;
 
     public bool CanUseAirborneJumpGrace => AirborneJumpGraceTimer > 0f;
+    public bool ExtraJumpAvailable => extraJumpAvailable;
 
     public void UpdateBeforeMovement(
         PlayerLocomotionState preMoveState,
@@ -56,6 +59,7 @@ public sealed class PlayerLocomotionRuntime
         float sprintDuration,
         float sprintCooldown,
         float airborneJumpGraceDuration,
+        bool allowExtraJump,
         float deltaTime)
     {
         bool enteredAirborneFromPlatform = preMoveState == PlayerLocomotionState.Airborne
@@ -81,6 +85,15 @@ public sealed class PlayerLocomotionRuntime
             && AirborneJumpGraceTimer > 0f;
         bool isGrounded = preMoveState == PlayerLocomotionState.OnPlatform
             || preMoveState == PlayerLocomotionState.Grounded;
+
+        if (!allowExtraJump)
+        {
+            extraJumpAvailable = false;
+        }
+        else if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            extraJumpAvailable = true;
+        }
 
         if (SprintTimer > 0f)
         {
@@ -125,6 +138,13 @@ public sealed class PlayerLocomotionRuntime
         {
             jumpQueued = true;
             canJump = false;
+        }
+
+        if (!canJump && allowExtraJump && preMoveState == PlayerLocomotionState.Airborne
+            && extraJumpAvailable && jumpPressedThisFrame)
+        {
+            jumpQueued = true;
+            extraJumpAvailable = false;
         }
 
         bool canSprint = canSprintSurface

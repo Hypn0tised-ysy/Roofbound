@@ -11,9 +11,14 @@ public class UI_Controller : MonoBehaviour
     public LevelComplete LevelComplete;
     public GameOver GameOver; 
 
+    public bool IsMenuPaused { get; private set; }
+
+    private float baseFixedDeltaTime;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
+        baseFixedDeltaTime = Time.fixedDeltaTime;
     }
 
     private void Start()
@@ -24,6 +29,7 @@ public class UI_Controller : MonoBehaviour
         LevelComplete.gameObject.SetActive(false);
         GameOver.HidePanel();
         MainMenu.ShowPanel();
+        SetMenuPaused(true);
     }
 
     // ================== 给外部(如按键事件、GameManager)调用的核心接口 ==================
@@ -32,6 +38,7 @@ public class UI_Controller : MonoBehaviour
     {
         // 游戏开始，通知 HUD 启动
         HUD.StartHUD();
+        SetMenuPaused(false);
     }
 
     public void TriggerVictory()
@@ -41,6 +48,7 @@ public class UI_Controller : MonoBehaviour
 
         // 2. 把时间喂给结算面板，让它出来接客
         LevelComplete.ShowVictory(finalTime);
+        SetMenuPaused(true);
     }
 
     public void TriggerGameOver()
@@ -50,6 +58,14 @@ public class UI_Controller : MonoBehaviour
 
         // 弹出死亡面板并呼出鼠标
         GameOver.ShowGameOver();
+        SetMenuPaused(false);
+    }
+
+    public void SetMenuPaused(bool paused)
+    {
+        IsMenuPaused = paused;
+        Time.timeScale = paused ? 0f : 1f;
+        Time.fixedDeltaTime = baseFixedDeltaTime * Time.timeScale;
     }
 
     // ================== 临时测试代码 (V:胜利, K:死亡) ==================

@@ -24,6 +24,11 @@ public class MainMenu : MonoBehaviour
         // 主菜单需要鼠标操作
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (UI_Controller.Instance != null)
+        {
+            UI_Controller.Instance.SetMenuPaused(true);
+        }
     }
 
 

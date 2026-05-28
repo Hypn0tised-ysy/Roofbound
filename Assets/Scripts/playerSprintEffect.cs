@@ -41,7 +41,11 @@ public class playerSprintEffect : MonoBehaviour
 
 		float targetFov = baseFov;
 
-		if (targetPlayer != null && targetPlayer.IsSprinting)
+		if (targetPlayer != null && targetPlayer.IsAirDashing)
+		{
+			targetFov = baseFov - targetPlayer.AirDashFovDelta;
+		}
+		else if (targetPlayer != null && targetPlayer.IsSprinting)
 		{
 			float maxBoostDenominator = Mathf.Max(speedForMaxBoost, 0.01f);
 			float speedRatio = Mathf.Clamp01(targetPlayer.CurrentHorizontalSpeed / maxBoostDenominator);
