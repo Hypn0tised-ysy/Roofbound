@@ -26,6 +26,8 @@ public class PlayerSkillParameters : ScriptableObject
     public float slowTimeMaxDuration = 2f;
     [Tooltip("Cooldown after slow time ends (seconds).")]
     public float slowTimeCooldown = 6f;
+    [Tooltip("Cooldown after slow time meter is fully depleted (seconds).")]
+    public float slowTimeDepletedCooldown = 1.5f;
 
     [Header("Jet Pack")]
     [Tooltip("Upward speed while jet pack is held.")]
@@ -34,12 +36,16 @@ public class PlayerSkillParameters : ScriptableObject
     public float jetPackMaxUpTime = 1.2f;
     [Tooltip("Cooldown after jet pack use (seconds).")]
     public float jetPackCooldown = 1.5f;
+    [Tooltip("Cooldown after jet pack meter is fully depleted (seconds).")]
+    public float jetPackDepletedCooldown = 1f;
 
     [Header("Levitation")]
     [Tooltip("Max duration of levitation (seconds).")]
     public float levitationMaxTime = 1.2f;
     [Tooltip("Cooldown after levitation (seconds).")]
     public float levitationCooldown = 1.5f;
+    [Tooltip("Cooldown after levitation meter is fully depleted (seconds).")]
+    public float levitationDepletedCooldown = 1f;
 
     [Header("Teleport")]
     [Tooltip("Raycast distance for teleport.")]

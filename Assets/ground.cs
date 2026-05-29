@@ -32,8 +32,16 @@ public class ground : MonoBehaviour
 
     private void HandlePlayerHit(GameObject target)
     {
+        if (target.CompareTag(playerTag))
+        {
+            hasTriggered = true;
+            levelControllerRef.NotifyPlayerKilledByHazard(target);
+            Debug.Log("[ground] 玩家与地面碰撞，触发死状态通知。");
+        }
         if (hasTriggered)
         {
+
+            Debug.Log("[ground] 已触发过玩家碰撞，忽略后续碰撞事件。");
             return;
         }
 
@@ -48,14 +56,6 @@ public class ground : MonoBehaviour
             return;
         }
 
-        if (target.CompareTag(playerTag))
-
-
-        {
-            hasTriggered = true;
-            levelControllerRef.NotifyPlayerHitGround(target);
-            Debug.Log("[ground] 玩家与地面碰撞，触发死状态通知。"); // 占位输出，后续替换为加载死菜单等逻辑
-        }
 
     }
 }

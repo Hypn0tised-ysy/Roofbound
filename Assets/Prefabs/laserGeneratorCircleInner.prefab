@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7b45ecc618265046833a13a02bae878, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserPrefab: {fileID: 0}
+  laserPrefab: {fileID: 7085478884678895667, guid: 9302ade196e5ecf4a82d81c79a573820, type: 3}
   radiusInner: 5
   radiusOuter: 10
   sampleCount: 20

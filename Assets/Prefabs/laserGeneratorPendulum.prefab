@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 662ccb9ba1affa948927dec69e612b82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserPrefab: {fileID: 0}
+  laserPrefab: {fileID: 7085478884678895667, guid: 9302ade196e5ecf4a82d81c79a573820, type: 3}
   laserCount: 20
   offset: 10
   swingAngle: 75
