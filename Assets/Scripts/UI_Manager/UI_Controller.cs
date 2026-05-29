@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.UIElements;
 
 public class UI_Controller : MonoBehaviour
 {
@@ -9,8 +10,8 @@ public class UI_Controller : MonoBehaviour
     public LevelSelect LevelSelect;
     public HUD HUD;
     public LevelComplete LevelComplete;
-    public GameOver GameOver; 
-
+    public GameOver GameOver;
+    public Panel_Settings Panel_Settings;
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -22,6 +23,7 @@ public class UI_Controller : MonoBehaviour
         LevelSelect.gameObject.SetActive(false);
         HUD.gameObject.SetActive(false);
         LevelComplete.gameObject.SetActive(false);
+        Panel_Settings.gameObject.SetActive(false);
         GameOver.HidePanel();
         MainMenu.ShowPanel();
     }
@@ -52,6 +54,13 @@ public class UI_Controller : MonoBehaviour
         GameOver.ShowGameOver();
     }
 
+    // 供 (PlayerController) 冲刺时调用！
+    public void UseDashSkill(float cooldownTime)
+    {
+        // 总控直接使唤 HUD 面板开始干活
+        HUD.TriggerDashCooldownUI(cooldownTime);
+    }
+
     // ================== 临时测试代码 (V:胜利, K:死亡) ==================
     private void Update()
     {
@@ -62,6 +71,13 @@ public class UI_Controller : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.K))
         {
             TriggerGameOver();
+        }
+        // 新增模拟冲刺按键
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+        {
+            // 模拟玩家按下了冲刺，假设技能冷却需要 3.5 秒
+            UseDashSkill(3.5f);
+            Debug.Log("测试：玩家冲刺！进度条开始 3.5 秒的冷却！");
         }
     }
 }

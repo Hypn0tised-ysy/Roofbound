@@ -18,6 +18,12 @@ public class MainMenu : MonoBehaviour
         UI_Controller.Instance.LevelSelect.ShowPanel();
     }
 
+    public void OnClickSettings()
+    {
+        gameObject.SetActive(false);
+        UI_Controller.Instance.Panel_Settings.ShowPanel(); // 呼叫设置面板
+    }
+
     public void ShowPanel()
     {
         gameObject.SetActive(true);
