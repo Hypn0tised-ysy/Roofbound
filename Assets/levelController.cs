@@ -105,14 +105,9 @@ public class levelController : MonoBehaviour
         game_finish?.Invoke();
         Debug.Log($"[levelController] game_finish 触发。player={player.name}");
 
-        // finish_menu 暂未实现，先提供占位加载逻辑。
-        if (finishMenuPanel != null)
+        if (UIManager.Instance != null)
         {
-            finishMenuPanel.SetActive(true);
-        }
-        else
-        {
-            Debug.Log("[levelController] finish_menu 暂未绑定，后续接入 UI 面板或场景加载。");
+            UIManager.Instance.TriggerVictory();
         }
     }
 
@@ -120,7 +115,11 @@ public class levelController : MonoBehaviour
     {
         game_dead?.Invoke();
         Debug.Log($"[levelController] game_dead 触发。player={player.name}");
-        Debug.Log("[levelController] dead_menu 暂未实现，当前仅输出调试日志。");
+
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.TriggerGameOver();
+        }
     }
 
     private void SpawnTrucks()

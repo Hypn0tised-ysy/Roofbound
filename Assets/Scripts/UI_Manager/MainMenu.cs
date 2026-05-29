@@ -4,18 +4,46 @@ using UnityEngine;
 
 public class MainMenu : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    // 点击 "Play" 按钮绑定此方法
+    public void OnClickPlay()
     {
-        
+        if (UI_Controller.Instance == null)
+        {
+            return;
+        }
+
+        gameObject.SetActive(false);
+        UI_Controller.Instance.ShowLevelSelect();
     }
 
-    // 点击 "Start Game" 按钮绑定此方法
-    public void OnClickStart()
+    // 点击 "Abilities" 按钮绑定此方法
+    public void OnClickAbilities()
     {
-        // 自己隐藏，请求总控打开选关界面
+        if (UI_Controller.Instance == null)
+        {
+            return;
+        }
+
         gameObject.SetActive(false);
-        UI_Controller.Instance.LevelSelect.ShowPanel();
+        UI_Controller.Instance.ShowAbilityPanel();
+    }
+
+    // 点击 "Options" 按钮绑定此方法
+    public void OnClickOptions()
+    {
+        if (UI_Controller.Instance == null)
+        {
+            return;
+        }
+
+        gameObject.SetActive(false);
+        UI_Controller.Instance.ShowOptionsPanel();
+    }
+
+    // 点击 "Quit" 按钮绑定此方法
+    public void OnClickQuit()
+    {
+        Application.Quit();
     }
 
     public void ShowPanel()
@@ -28,13 +56,7 @@ public class MainMenu : MonoBehaviour
         if (UI_Controller.Instance != null)
         {
             UI_Controller.Instance.SetMenuPaused(true);
+            UI_Controller.Instance.SetInputLocked(true);
         }
-    }
-
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 }

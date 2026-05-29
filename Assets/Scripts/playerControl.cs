@@ -100,6 +100,10 @@ public class playerControl : MonoBehaviour
     [SerializeField] private Volume timeSlowVolume;
     [SerializeField] private GameObject timeSlowVolumePrefab;
 
+    [Header("技能计时")]
+    [Tooltip("技能消耗速度相对恢复速度的倍率。")]
+    [SerializeField] private float skillConsumeRateMultiplier = 2f;
+
     [Header("重力参数")]
     [Tooltip("重力加速度（单位：m/s^2）。")]
     [SerializeField] private float gravityAcceleration = 20f;
@@ -109,6 +113,10 @@ public class playerControl : MonoBehaviour
     [Header("测试开关")]
     [Tooltip("地面触发 dead 事件后是否锁定输入。测试阶段可关闭以继续移动。")]
     [SerializeField] private bool lockInputAfterGroundDead = false;
+
+    [Header("玩家 UI")]
+    [Tooltip("玩家身上的 Canvas 根对象。暂停/死亡/通关时会自动隐藏。")]
+    [SerializeField] private GameObject playerCanvasRoot;
 
     // CharacterController 用于移动与碰撞。
     private CharacterController controller;
@@ -146,6 +154,7 @@ public class playerControl : MonoBehaviour
     // 死亡后锁定输入读取。
     private bool isInputLockedByDeath;
     private bool isDead;
+    private bool hasTriggeredGroundedDeath;
 
     private MovementSkillId movementSkillId = MovementSkillId.None;
     private UtilitySkillId utilitySkillId = UtilitySkillId.None;
@@ -163,13 +172,16 @@ public class playerControl : MonoBehaviour
     private float slowTimeVolumeLerpSpeed;
     private float slowTimeMaxDuration;
     private float slowTimeCooldown;
+    private float slowTimeDepletedCooldown;
 
     private float jetPackUpSpeed;
     private float jetPackMaxUpTime;
     private float jetPackCooldown;
+    private float jetPackDepletedCooldown;
 
     private float levitationMaxTime;
     private float levitationCooldown;
+    private float levitationDepletedCooldown;
 
     private float teleportRange;
     private float teleportHeight;
@@ -185,9 +197,11 @@ public class playerControl : MonoBehaviour
 
     private float jetPackTimer;
     private float jetPackCooldownTimer;
+    private float jetPackDepletedCooldownTimer;
 
     private float levitationTimer;
     private float levitationCooldownTimer;
+    private float levitationDepletedCooldownTimer;
     private bool levitationActive;
 
     private float teleportCooldownTimer;
@@ -198,6 +212,8 @@ public class playerControl : MonoBehaviour
 
     private float slowTimeTimer;
     private float slowTimeCooldownTimer;
+    private float slowTimeDepletedCooldownTimer;
+    private bool slowTimeInitialized;
 
     private float baseFixedDeltaTime;
 
@@ -268,6 +284,11 @@ public class playerControl : MonoBehaviour
         if (utilitySkillId == UtilitySkillId.SlowTime)
         {
             EnsureTimeSlowVolume();
+            InitializeSlowTimeTimer();
+        }
+        else
+        {
+            slowTimeInitialized = false;
         }
 
         InitializeLocomotionStateMachine();
@@ -309,7 +330,7 @@ public class playerControl : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        if (isInputLockedByDeath)
+        if (isInputLockedByDeath || IsInputLockedByUI())
         {
             isGrounded = controller != null && controller.isGrounded;
             UpdateLocomotionStateMachine();
@@ -394,8 +415,16 @@ public class playerControl : MonoBehaviour
 
     private void OnGameDead()
     {
+        Debug.Log("Dead!");
         isDead = true;
         ResetSlowTime();
+
+        SetPlayerCanvasVisible(false);
+
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.TriggerGameOver();
+        }
 
         if (!lockInputAfterGroundDead)
         {
@@ -409,6 +438,11 @@ public class playerControl : MonoBehaviour
     private void OnLocomotionStateChanged(PlayerLocomotionState previousState, PlayerLocomotionState nextState)
     {
         locomotionStateDriver?.ChangeState(nextState, BuildLocomotionFrameContext());
+
+        if (!isDead && previousState != PlayerLocomotionState.Grounded && nextState == PlayerLocomotionState.Grounded)
+        {
+            TriggerGroundedDeath();
+        }
     }
 
     private PlayerLocomotionFrameContext BuildLocomotionFrameContext()
@@ -420,6 +454,34 @@ public class playerControl : MonoBehaviour
             HasPlatform = platformMotion != null && platformMotion.CurrentPlatform != null,
             MoveInput = inputSnapshot.Move,
         };
+    }
+
+    public void SetPlayerCanvasVisible(bool visible)
+    {
+        if (playerCanvasRoot == null)
+        {
+            Canvas canvas = GetComponentInChildren<Canvas>(true);
+            if (canvas != null)
+            {
+                playerCanvasRoot = canvas.gameObject;
+            }
+        }
+
+        if (playerCanvasRoot != null)
+        {
+            playerCanvasRoot.SetActive(visible);
+        }
+    }
+
+    private void TriggerGroundedDeath()
+    {
+        if (hasTriggeredGroundedDeath)
+        {
+            return;
+        }
+
+        hasTriggeredGroundedDeath = true;
+        OnGameDead();
     }
 
     /// <summary>
@@ -566,34 +628,47 @@ public class playerControl : MonoBehaviour
             return;
         }
 
-        if (slowTimeCooldownTimer > 0f)
+        float maxDuration = Mathf.Max(0f, slowTimeMaxDuration);
+
+        if (slowTimeDepletedCooldownTimer > 0f)
         {
-            slowTimeCooldownTimer = Mathf.Max(0f, slowTimeCooldownTimer - Time.deltaTime);
+            slowTimeDepletedCooldownTimer = Mathf.Max(0f, slowTimeDepletedCooldownTimer - Time.deltaTime);
+            ResetSlowTime();
+            return;
         }
 
-        if (slowTimeTimer <= 0f && slowTimeCooldownTimer <= 0f)
+        if (inputSnapshot.SlowTimeHeld && slowTimeTimer > 0f)
         {
-            slowTimeTimer = slowTimeMaxDuration;
-        }
-
-        if (inputSnapshot.SlowTimeHeld && slowTimeCooldownTimer <= 0f && slowTimeTimer > 0f)
-        {
-            slowTimeTimer = Mathf.Max(0f, slowTimeTimer - Time.deltaTime);
-            ApplySlowTime();
-
-            if (slowTimeTimer <= 0f)
+            float consumeRate = GetConsumeRate(slowTimeMaxDuration, slowTimeCooldown);
+            slowTimeTimer = Mathf.Max(0f, slowTimeTimer - consumeRate * Time.deltaTime);
+            if (slowTimeTimer > 0f)
             {
-                slowTimeCooldownTimer = slowTimeCooldown;
+                ApplySlowTime();
+                return;
             }
-        }
-        else
-        {
-            if (slowTimeTimer < slowTimeMaxDuration && slowTimeCooldownTimer <= 0f)
+
+            if (slowTimeDepletedCooldown > 0f)
             {
-                slowTimeCooldownTimer = slowTimeCooldown;
+                slowTimeDepletedCooldownTimer = slowTimeDepletedCooldown;
             }
 
             ResetSlowTime();
+            return;
+        }
+
+        ResetSlowTime();
+
+        if (slowTimeTimer < maxDuration)
+        {
+            if (slowTimeCooldown > 0f && maxDuration > 0f)
+            {
+                float regenRate = maxDuration / slowTimeCooldown;
+                slowTimeTimer = Mathf.Min(maxDuration, slowTimeTimer + regenRate * Time.deltaTime);
+            }
+            else
+            {
+                slowTimeTimer = maxDuration;
+            }
         }
     }
 
@@ -630,7 +705,13 @@ public class playerControl : MonoBehaviour
 
     private bool IsMenuPaused()
     {
-        return UI_Controller.Instance != null && UI_Controller.Instance.IsMenuPaused;
+        return UIManager.Instance != null
+            && (UIManager.Instance.IsMenuPaused || UIManager.Instance.IsInputLocked);
+    }
+
+    private bool IsInputLockedByUI()
+    {
+        return UIManager.Instance != null && UIManager.Instance.IsInputLocked;
     }
 
     private void LoadSkillSelection()
@@ -684,6 +765,11 @@ public class playerControl : MonoBehaviour
         {
             Debug.Log("[playerControl] 实用技能覆盖为 SlowTime，确保 TimeSlowVolume 已准备就绪。");
             EnsureTimeSlowVolume();
+            InitializeSlowTimeTimer();
+        }
+        else
+        {
+            slowTimeInitialized = false;
         }
     }
 
@@ -705,13 +791,16 @@ public class playerControl : MonoBehaviour
         slowTimeVolumeLerpSpeed = skillParameters.slowTimeVolumeLerpSpeed;
         slowTimeMaxDuration = skillParameters.slowTimeMaxDuration;
         slowTimeCooldown = skillParameters.slowTimeCooldown;
+        slowTimeDepletedCooldown = skillParameters.slowTimeDepletedCooldown;
 
         jetPackUpSpeed = skillParameters.jetPackUpSpeed;
         jetPackMaxUpTime = skillParameters.jetPackMaxUpTime;
         jetPackCooldown = skillParameters.jetPackCooldown;
+        jetPackDepletedCooldown = skillParameters.jetPackDepletedCooldown;
 
         levitationMaxTime = skillParameters.levitationMaxTime;
         levitationCooldown = skillParameters.levitationCooldown;
+        levitationDepletedCooldown = skillParameters.levitationDepletedCooldown;
 
         teleportRange = skillParameters.teleportRange;
         teleportHeight = skillParameters.teleportHeight;
@@ -719,6 +808,17 @@ public class playerControl : MonoBehaviour
 
         freezeDuration = skillParameters.freezeDuration;
         freezeCooldown = skillParameters.freezeCooldown;
+    }
+
+    private void InitializeSlowTimeTimer()
+    {
+        if (slowTimeInitialized)
+        {
+            return;
+        }
+
+        slowTimeTimer = slowTimeMaxDuration;
+        slowTimeInitialized = true;
     }
 
     public bool TryGetMovementTimerStatus(out float ratio, out bool isActiveOrCooling)
@@ -746,36 +846,40 @@ public class playerControl : MonoBehaviour
                 ratio = 1f;
                 return true;
             case MovementSkillId.JetPack:
-                if (jetPackTimer > 0f)
+                if (jetPackDepletedCooldown > 0f && jetPackDepletedCooldownTimer > 0f)
                 {
-                    float maxTime = Mathf.Max(0.01f, jetPackMaxUpTime);
-                    ratio = Mathf.Clamp01(1f - (jetPackTimer / maxTime));
+                    ratio = 0f;
                     isActiveOrCooling = true;
                     return true;
                 }
-                if (jetPackCooldown > 0f && jetPackCooldownTimer > 0f)
+                if (jetPackMaxUpTime > 0f)
                 {
-                    ratio = 1f - Mathf.Clamp01(jetPackCooldownTimer / jetPackCooldown);
-                    isActiveOrCooling = true;
-                    return true;
+                    ratio = Mathf.Clamp01(1f - (jetPackTimer / jetPackMaxUpTime));
                 }
-                ratio = 1f;
+                else
+                {
+                    ratio = 1f;
+                }
+
+                isActiveOrCooling = jetPackTimer > 0f;
                 return true;
             case MovementSkillId.Levitation:
-                if (levitationTimer > 0f)
+                if (levitationDepletedCooldown > 0f && levitationDepletedCooldownTimer > 0f)
                 {
-                    float maxTime = Mathf.Max(0.01f, levitationMaxTime);
-                    ratio = Mathf.Clamp01(1f - (levitationTimer / maxTime));
+                    ratio = 0f;
                     isActiveOrCooling = true;
                     return true;
                 }
-                if (levitationCooldown > 0f && levitationCooldownTimer > 0f)
+                if (levitationMaxTime > 0f)
                 {
-                    ratio = 1f - Mathf.Clamp01(levitationCooldownTimer / levitationCooldown);
-                    isActiveOrCooling = true;
-                    return true;
+                    ratio = Mathf.Clamp01(1f - (levitationTimer / levitationMaxTime));
                 }
-                ratio = 1f;
+                else
+                {
+                    ratio = 1f;
+                }
+
+                isActiveOrCooling = levitationTimer > 0f;
                 return true;
             case MovementSkillId.Teleport:
                 if (teleportCooldown > 0f && teleportCooldownTimer > 0f)
@@ -799,19 +903,15 @@ public class playerControl : MonoBehaviour
         switch (utilitySkillId)
         {
             case UtilitySkillId.SlowTime:
-                if (slowTimeTimer > 0f && slowTimeMaxDuration > 0f && inputSnapshot.SlowTimeHeld)
+                float slowTimeMax = Mathf.Max(0f, slowTimeMaxDuration);
+                if (slowTimeDepletedCooldown > 0f && slowTimeDepletedCooldownTimer > 0f)
                 {
-                    ratio = Mathf.Clamp01(slowTimeTimer / Mathf.Max(0.01f, slowTimeMaxDuration));
+                    ratio = 0f;
                     isActiveOrCooling = true;
                     return true;
                 }
-                if (slowTimeCooldown > 0f && slowTimeCooldownTimer > 0f)
-                {
-                    ratio = 1f - Mathf.Clamp01(slowTimeCooldownTimer / slowTimeCooldown);
-                    isActiveOrCooling = true;
-                    return true;
-                }
-                ratio = 1f;
+                ratio = slowTimeMax > 0f ? Mathf.Clamp01(slowTimeTimer / slowTimeMax) : 1f;
+                isActiveOrCooling = inputSnapshot.SlowTimeHeld || slowTimeTimer < slowTimeMax;
                 return true;
             case UtilitySkillId.FreezeTrucks:
                 if (freezeTimer > 0f && freezeDuration > 0f)
@@ -874,26 +974,44 @@ public class playerControl : MonoBehaviour
             jetPackTimer = 0f;
         }
 
-        if (jetPackCooldownTimer > 0f)
+        if (jetPackDepletedCooldownTimer > 0f)
         {
-            jetPackCooldownTimer = Mathf.Max(0f, jetPackCooldownTimer - deltaTime);
+            jetPackDepletedCooldownTimer = Mathf.Max(0f, jetPackDepletedCooldownTimer - deltaTime);
+            return;
         }
 
         bool canUse = preMoveState == PlayerLocomotionState.Airborne
-            && jetPackCooldownTimer <= 0f
             && jetPackTimer < jetPackMaxUpTime
             && inputSnapshot.PrimarySkillHeld;
 
         if (canUse)
         {
-            jetPackTimer += deltaTime;
+            float consumeRate = GetConsumeRate(jetPackMaxUpTime, jetPackCooldown);
+            jetPackTimer += consumeRate * deltaTime;
+            if (jetPackTimer >= jetPackMaxUpTime)
+            {
+                jetPackTimer = jetPackMaxUpTime;
+                if (jetPackDepletedCooldown > 0f)
+                {
+                    jetPackDepletedCooldownTimer = jetPackDepletedCooldown;
+                }
+                return;
+            }
             verticalVelocity = Mathf.Max(verticalVelocity, jetPackUpSpeed);
             return;
         }
 
-        if (jetPackTimer > 0f && jetPackCooldownTimer <= 0f)
+        if (jetPackTimer > 0f)
         {
-            jetPackCooldownTimer = jetPackCooldown;
+            if (jetPackCooldown > 0f && jetPackMaxUpTime > 0f)
+            {
+                float regenRate = jetPackMaxUpTime / jetPackCooldown;
+                jetPackTimer = Mathf.Max(0f, jetPackTimer - regenRate * deltaTime);
+            }
+            else
+            {
+                jetPackTimer = 0f;
+            }
         }
     }
 
@@ -912,27 +1030,46 @@ public class playerControl : MonoBehaviour
             levitationTimer = 0f;
         }
 
-        if (levitationCooldownTimer > 0f)
+        if (levitationDepletedCooldownTimer > 0f)
         {
-            levitationCooldownTimer = Mathf.Max(0f, levitationCooldownTimer - deltaTime);
+            levitationDepletedCooldownTimer = Mathf.Max(0f, levitationDepletedCooldownTimer - deltaTime);
+            return;
         }
 
         bool canUse = preMoveState == PlayerLocomotionState.Airborne
-            && levitationCooldownTimer <= 0f
             && levitationTimer < levitationMaxTime
             && inputSnapshot.PrimarySkillHeld;
 
         if (canUse)
         {
             levitationActive = true;
-            levitationTimer += deltaTime;
+            float consumeRate = GetConsumeRate(levitationMaxTime, levitationCooldown);
+            levitationTimer += consumeRate * deltaTime;
+            if (levitationTimer >= levitationMaxTime)
+            {
+                levitationTimer = levitationMaxTime;
+                if (levitationDepletedCooldown > 0f)
+                {
+                    levitationDepletedCooldownTimer = levitationDepletedCooldown;
+                }
+                levitationActive = false;
+                return;
+            }
             verticalVelocity = 0f;
             return;
         }
 
-        if (levitationTimer > 0f && levitationCooldownTimer <= 0f)
+        if (levitationTimer > 0f)
         {
-            levitationCooldownTimer = levitationCooldown;
+            if (levitationCooldown > 0f && levitationMaxTime > 0f)
+            {
+                float regenRate = levitationMaxTime / levitationCooldown;
+                levitationTimer = Mathf.Max(0f, levitationTimer - regenRate * deltaTime);
+            }
+            else
+            {
+                levitationTimer = 0f;
+            }
         }
     }
 
@@ -1106,6 +1243,22 @@ public class playerControl : MonoBehaviour
         airborneJumpGraceDuration = configAsset.airborneJumpGraceDuration;
         gravityAcceleration = configAsset.gravityAcceleration;
         groundedVerticalVelocity = configAsset.groundedVerticalVelocity;
+    }
+
+    private float GetConsumeRate(float maxDuration, float cooldown)
+    {
+        if (maxDuration <= 0f)
+        {
+            return 0f;
+        }
+
+        if (cooldown <= 0f)
+        {
+            return Mathf.Max(0.01f, skillConsumeRateMultiplier);
+        }
+
+        float regenRate = maxDuration / cooldown;
+        return regenRate * Mathf.Max(0.01f, skillConsumeRateMultiplier);
     }
 
     /// <summary>

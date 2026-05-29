@@ -19,24 +19,33 @@ public class LevelComplete : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        if (UI_Controller.Instance != null)
+        if (UIManager.Instance != null)
         {
-            UI_Controller.Instance.SetMenuPaused(true);
+            UIManager.Instance.SetMenuPaused(true);
+            UIManager.Instance.SetInputLocked(true);
         }
     }
 
-    // 点击 "Main Menu" 按钮
+    // 点击 "Main Menu" 按钮 — 返回主菜单场景
     public void OnClickMainMenu()
     {
         gameObject.SetActive(false);
-        UI_Controller.Instance.MainMenu.ShowPanel();
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.RequestShowMainMenuOnNextSceneLoad();
+        }
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene("main");
     }
 
     // 点击 "Next Level" 按钮
     public void OnClickNextLevel()
     {
         gameObject.SetActive(false);
-        UI_Controller.Instance.StartGameplay();
-        Debug.Log("UI -> 发送加载下一关的指令");
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.PlayNextLevel();
+        }
+        Debug.Log("UI -> 请求加载下一关");
     }
 }
