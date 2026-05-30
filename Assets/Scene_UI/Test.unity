@@ -1144,9 +1144,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   MainMenu: {fileID: 1685391237}
   LevelSelect: {fileID: 1289280955}
-  HUD: {fileID: 1446603845}
-  LevelComplete: {fileID: 776426747}
-  GameOver: {fileID: 2100776378}
+  abilityPanel: {fileID: 0}
+  optionsPanel: {fileID: 0}
+  levelSceneNames:
+  - level1-1
+  - level1-2
+  selectedLevelIndex: 0
+  pauseMenuPanel: {fileID: 0}
+  deadMenuPanel: {fileID: 0}
+  finishMenuPanel: {fileID: 0}
 --- !u!1 &490798409
 GameObject:
   m_ObjectHideFlags: 0
@@ -1932,6 +1938,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d250bfda97ddcc40a1896e637490e9a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  levelSceneNames: []
+  defaultLevelIndex: 0
 --- !u!114 &1289280956
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4262,3 +4270,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b222192a18507b84fbb05b08f8d86569, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  restartOnAnyKey: 1

@@ -29,6 +29,9 @@ public class SingleTruckAI : MonoBehaviour
     private Collider[] allColliders;     // 所有碰撞体（用于统一更换材质）
     private int currentWPIndex = 0;      // 当前追踪的路径点索引
 
+    [Header("街机重力魔法")]
+    public float extraGravity = 20f;  // 额外向下重力（普通重力是9.8，这里加到40，让它像铁块一样）
+
     void Awake()
     {
         // 缓存组件，避免每帧重新查找
@@ -38,7 +41,7 @@ public class SingleTruckAI : MonoBehaviour
         // 降低重心到车身几何中心以下（防止侧翻，注意数值不宜过低以免穿透地面）
         rb.centerOfMass = new Vector3(0, -1.5f, 0);
         rb.drag = 1.5f;          // 线性阻尼，收油后自然减速
-        rb.angularDrag = 5f;     // 角阻尼，抑制转向过度
+        rb.angularDrag = 1.5f;     // 角阻尼，抑制转向过度
     }
 
     // ---------- 外部注入配置 ----------
@@ -78,6 +81,7 @@ public class SingleTruckAI : MonoBehaviour
             Steer();
             ApplyGrip();
             Stabilize();
+            ApplyDownforce();
         }
     }
 
@@ -115,8 +119,6 @@ public class SingleTruckAI : MonoBehaviour
     void Steer()
     {
         Vector3 targetPos = waypoints[currentWPIndex].position;
-
-        // 计算水平距离（忽略Y轴），避免上坡时因高度差提前切换
         Vector3 pos2D = new Vector3(transform.position.x, 0, transform.position.z);
         Vector3 target2D = new Vector3(targetPos.x, 0, targetPos.z);
 
@@ -129,31 +131,70 @@ public class SingleTruckAI : MonoBehaviour
             }
         }
 
-        // 转向量 = 当前朝向与目标方向叉积的Y分量（正值右转，负值左转）
         Vector3 dirToTarget = (targetPos - transform.position).normalized;
         dirToTarget.y = 0;
         float turnAmount = Vector3.Cross(transform.forward, dirToTarget).y;
+
+        // === 新增：动态转向衰减魔法 ===
+        // 获取当前速度比例 (0 到 1)
+        float speedFactor = Mathf.Clamp01(rb.velocity.magnitude / maxSpeed);
+
+        // 核心：速度越快，转向力越小。
+        // Mathf.Lerp(1f, 0.4f, speedFactor) 意思是：低速时保持 100% 的 steerForce，高速时只剩 40% 的 steerForce。
+        float currentSteerForce = steerForce * Mathf.Lerp(1f, 0.4f, speedFactor);
+
         rb.AddTorque(transform.up * turnAmount * steerForce, ForceMode.Acceleration);
     }
 
     /// <summary>
-    /// 抑制横向侧滑：将局部坐标下的横向速度按比例大幅削弱（接近零）。
-    /// 注意：当前为直接修改速度，极端情况可能引起物理不稳定（可改为基于力的阻尼）。
+    /// 抑制横向侧滑
     /// </summary>
     void ApplyGrip()
     {
         Vector3 localVelocity = transform.InverseTransformDirection(rb.velocity);
-        localVelocity.x *= 0.02f; // 保留2%的侧向速度，模拟极强的横向抓地力
+
+        localVelocity.x *= 0.02f; // 保持强抓地力
+
         rb.velocity = transform.TransformDirection(localVelocity);
     }
 
     /// <summary>
-    /// 施加扶正扭矩，将车辆的上方向逐渐修正至世界向上。
+    /// 施加扶正扭矩：只限制左右侧翻，允许自然上下坡（抬头/点头）
     /// </summary>
     void Stabilize()
     {
-        Vector3 cross = Vector3.Cross(transform.up, Vector3.up);
-        rb.AddTorque(cross * stabilizeForce, ForceMode.Acceleration);
+        // 1. 计算将当前朝向纠正到绝对直立所需的总扭矩
+        Vector3 torqueVector = Vector3.Cross(transform.up, Vector3.up);
+
+        // 2. 将这个世界坐标系下的扭矩，转换到卡车自身的局部坐标系下
+        Vector3 localTorque = transform.InverseTransformDirection(torqueVector);
+
+        // 3. 核心魔法：消除前后方向的限制！
+        // 局部坐标系下：
+        // x 轴代表前后仰角 (Pitch)，我们把它设为 0，允许卡车自然上下坡
+        // y 轴代表左右转向 (Yaw)，不归这里管，设为 0
+        // z 轴代表左右侧翻 (Roll)，保留这个值，死死按住防止侧翻
+        localTorque.x = 0f;
+        localTorque.y = 0f;
+
+        // 4. 将处理后的扭矩转回世界坐标系，并施加给刚体
+        Vector3 finalTorque = transform.TransformDirection(localTorque);
+        rb.AddTorque(finalTorque * stabilizeForce, ForceMode.Acceleration);
+    }
+
+    /// <summary>
+    /// 施加街机下压力：解决高速冲坡后“轻飘飘飞天”的问题
+    /// </summary>
+    void ApplyDownforce()
+    {
+        // 1. 绝对重力：让卡车只要悬空，就像铅球一样急速下坠
+        rb.AddForce(Vector3.down * extraGravity, ForceMode.Acceleration);
+
+        // 2. 空气动力学下压力（F1赛车原理）：沿着车顶方向的反方向往下压
+        // 车速越快，这个下压力越大，让车轮死死咬住坡面！
+        float currentSpeed = rb.velocity.magnitude;
+        float speedFactor = Mathf.Clamp01(currentSpeed / maxSpeed); // 0到1的比例
+        rb.AddForce(-transform.up * (extraGravity * 0.5f) * speedFactor, ForceMode.Acceleration);
     }
 
     /// <summary>
