@@ -89,6 +89,17 @@ public class levelController : MonoBehaviour
         TriggerGameDead(player);
     }
 
+    public void NotifyPlayerKilledByHazard(GameObject player)
+    {
+        if (isGameFinished || isGameDead)
+        {
+            return;
+        }
+
+        isGameDead = true;
+        TriggerGameDead(player);
+    }
+
     private void TriggerGameFinish(GameObject player)
     {
         game_finish?.Invoke();
