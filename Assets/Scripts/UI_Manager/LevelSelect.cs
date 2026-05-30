@@ -4,37 +4,71 @@ using UnityEngine;
 
 public class LevelSelect : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    [Header("关卡列表")]
+    [SerializeField] private string[] levelSceneNames;
+    [SerializeField] private int defaultLevelIndex = 0;
+
+    private int selectedLevelIndex;
+
+    private void Awake()
     {
-        
+        selectedLevelIndex = Mathf.Clamp(defaultLevelIndex, 0, Mathf.Max(0, levelSceneNames.Length - 1));
     }
 
     // 点击 "Back" 按钮绑定此方法
     public void OnClickBack()
     {
+        if (UI_Controller.Instance == null)
+        {
+            return;
+        }
+
         gameObject.SetActive(false);
-        UI_Controller.Instance.MainMenu.ShowPanel();
+        UI_Controller.Instance.ShowMainMenu();
     }
 
-    // 点击 "Level 1" 按钮绑定此方法
-    public void OnClickLevel1()
+    public void OnClickSelectLevel(int index)
     {
+        if (levelSceneNames == null || levelSceneNames.Length == 0)
+        {
+            return;
+        }
+
+        selectedLevelIndex = Mathf.Clamp(index, 0, levelSceneNames.Length - 1);
+    }
+
+    public void OnClickPlay()
+    {
+        if (UI_Controller.Instance == null)
+        {
+            return;
+        }
+
         gameObject.SetActive(false);
-        // 通知总控：开始游戏！
         UI_Controller.Instance.StartGameplay();
 
-        Debug.Log("UI -> 发送加载 Level 1 的指令给 GameManager");
+        if (levelSceneNames != null && levelSceneNames.Length > 0)
+        {
+            string sceneName = levelSceneNames[Mathf.Clamp(selectedLevelIndex, 0, levelSceneNames.Length - 1)];
+            if (!string.IsNullOrEmpty(sceneName))
+            {
+                UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName);
+            }
+        }
     }
 
 
     public void ShowPanel()
     {
         gameObject.SetActive(true);
-    }
-    // Update is called once per frame
-    void Update()
-    {
-        
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (UI_Controller.Instance != null)
+        {
+            UI_Controller.Instance.SetMenuPaused(true);
+            UI_Controller.Instance.SetInputLocked(true);
+        }
     }
 }

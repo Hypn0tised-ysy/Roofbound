@@ -1,21 +1,47 @@
 {
-    "movement":[
+    "movement": [
         {
-        "name": "Air Dash",
-        "description": "Allows the player to dash through the air, covering a greater distance than a regular jump.",
-        "cooldown": 3
+            "name": "doubleJump",
+            "description": "Allows the player to jump again while in the air.",
+            "cooldown": 0
         },
         {
-        "name": "Double Jump",
-        "description": "Allows the player to jump again while in the air, providing increased mobility and access to higher areas."
+            "name": "airDash",
+            "description": "Allows the player to dash through the air.",
+            "cooldown": 3
+        },
+        {
+            "name": "jetPack",
+            "description": "Allows brief vertical thrust while airborne.",
+            "cooldown": 0
+        },
+        {
+            "name": "levitation",
+            "description": "Allows the player to hover briefly.",
+            "cooldown": 0
+        },
+        {
+            "name": "teleport",
+            "description": "Allows short-range teleport movement.",
+            "cooldown": 0
         }
     ],
 
-    "utility":[
+    "utility": [
         {
-            "name":"Time Slow",
-            "description":"Slows down time for a short duration, allowing the player to react to fast-moving obstacles or enemies.",
+            "name": "timeSlow",
+            "description": "Slows down time while held.",
             "cooldown": 10
+        },
+        {
+            "name": "freezeTrucks",
+            "description": "Temporarily freezes truck motion.",
+            "cooldown": 0
+        },
+        {
+            "name": "epicMode",
+            "description": "gain more scores",
+            "cooldown": 0
         }
     ]
 }

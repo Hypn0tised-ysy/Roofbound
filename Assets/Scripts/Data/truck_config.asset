@@ -21,3 +21,7 @@ MonoBehaviour:
   interpolation: 0
   collisionDetection: 0
   constraints: 0
+  enableFlipDetection: 1
+  flippedUpDotThreshold: 0.25
+  flippedLinearDragCoefficient: 4
+  flippedAngularDampingCoefficient: 2

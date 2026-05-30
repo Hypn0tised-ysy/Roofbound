@@ -10,6 +10,8 @@ public sealed class PlayerInputReader
     private InputAction jumpAction;
     private InputAction sprintAction;
     private InputAction lookAction;
+    private InputAction primarySkillAction;
+    private InputAction slowTimeAction;
 
     public void InitializeDefaultBindings()
     {
@@ -23,6 +25,8 @@ public sealed class PlayerInputReader
         jumpAction = new InputAction(name: "Jump", type: InputActionType.Button, binding: "<Keyboard>/space");
         sprintAction = new InputAction(name: "Sprint", type: InputActionType.Button, binding: "<Keyboard>/leftShift");
         lookAction = new InputAction(name: "Look", type: InputActionType.Value, binding: "<Mouse>/delta");
+        primarySkillAction = new InputAction(name: "PrimarySkill", type: InputActionType.Button, binding: "<Mouse>/leftButton");
+        slowTimeAction = new InputAction(name: "SlowTime", type: InputActionType.Button, binding: "<Mouse>/rightButton");
     }
 
     public void Enable()
@@ -31,6 +35,8 @@ public sealed class PlayerInputReader
         jumpAction?.Enable();
         sprintAction?.Enable();
         lookAction?.Enable();
+        primarySkillAction?.Enable();
+        slowTimeAction?.Enable();
     }
 
     public void Disable()
@@ -39,6 +45,8 @@ public sealed class PlayerInputReader
         jumpAction?.Disable();
         sprintAction?.Disable();
         lookAction?.Disable();
+        primarySkillAction?.Disable();
+        slowTimeAction?.Disable();
     }
 
     public PlayerInputSnapshot ReadSnapshot()
@@ -49,6 +57,10 @@ public sealed class PlayerInputReader
             Look = lookAction != null ? lookAction.ReadValue<Vector2>() : Vector2.zero,
             JumpPressedThisFrame = jumpAction != null && jumpAction.WasPressedThisFrame(),
             SprintPressed = sprintAction != null && sprintAction.IsPressed(),
+            PrimarySkillPressedThisFrame = primarySkillAction != null && primarySkillAction.WasPressedThisFrame(),
+            PrimarySkillHeld = primarySkillAction != null && primarySkillAction.IsPressed(),
+            SlowTimeHeld = slowTimeAction != null && slowTimeAction.IsPressed(),
+            SecondarySkillPressedThisFrame = slowTimeAction != null && slowTimeAction.WasPressedThisFrame(),
         };
     }
 }

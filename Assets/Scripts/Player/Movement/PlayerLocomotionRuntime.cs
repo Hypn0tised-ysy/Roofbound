@@ -7,18 +7,28 @@ public sealed class PlayerLocomotionRuntime
 {
     public float SprintTimer { get; private set; }
     public float SprintCooldownTimer { get; private set; }
+    public float AirborneJumpGraceTimer { get; private set; }
 
     private bool canJump;
     private bool wasGrounded;
     private bool jumpQueued;
+    private bool extraJumpQueued;
+    private bool extraJumpAvailable;
+    private PlayerLocomotionState previousState;
 
     public void Initialize(bool isInitiallyGrounded)
     {
         canJump = false;
         wasGrounded = isInitiallyGrounded;
         jumpQueued = false;
+        extraJumpQueued = false;
+        extraJumpAvailable = false;
         SprintTimer = 0f;
         SprintCooldownTimer = 0f;
+        AirborneJumpGraceTimer = 0f;
+        previousState = isInitiallyGrounded
+            ? PlayerLocomotionState.Grounded
+            : PlayerLocomotionState.Airborne;
     }
 
     public bool IsSprinting()
@@ -37,6 +47,13 @@ public sealed class PlayerLocomotionRuntime
         return true;
     }
 
+    // Expose whether a jump is currently allowed (刷新资格后的结果)
+    public bool CanJump => canJump;
+
+    public bool CanUseAirborneJumpGrace => AirborneJumpGraceTimer > 0f;
+    public bool ExtraJumpAvailable => extraJumpAvailable;
+    public bool CanConsumeQueuedJumpInAir => jumpQueued && extraJumpQueued;
+
     public void UpdateBeforeMovement(
         PlayerLocomotionState preMoveState,
         float verticalVelocity,
@@ -44,12 +61,42 @@ public sealed class PlayerLocomotionRuntime
         bool sprintPressed,
         float sprintDuration,
         float sprintCooldown,
+        float airborneJumpGraceDuration,
+        bool allowExtraJump,
         float deltaTime)
     {
+        bool enteredAirborneFromPlatform = preMoveState == PlayerLocomotionState.Airborne
+            && previousState == PlayerLocomotionState.OnPlatform;
+
+        if (enteredAirborneFromPlatform)
+        {
+            AirborneJumpGraceTimer = Mathf.Max(0f, airborneJumpGraceDuration);
+        }
+
+        if (preMoveState == PlayerLocomotionState.Airborne && AirborneJumpGraceTimer > 0f)
+        {
+            AirborneJumpGraceTimer = Mathf.Max(0f, AirborneJumpGraceTimer - deltaTime);
+        }
+        else if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            AirborneJumpGraceTimer = 0f;
+        }
+
         bool canJumpSurface = preMoveState == PlayerLocomotionState.OnPlatform;
         bool canSprintSurface = preMoveState == PlayerLocomotionState.OnPlatform;
+        bool canAirborneGraceJump = preMoveState == PlayerLocomotionState.Airborne
+            && AirborneJumpGraceTimer > 0f;
         bool isGrounded = preMoveState == PlayerLocomotionState.OnPlatform
             || preMoveState == PlayerLocomotionState.Grounded;
+
+        if (!allowExtraJump)
+        {
+            extraJumpAvailable = false;
+        }
+        else if (preMoveState != PlayerLocomotionState.Airborne)
+        {
+            extraJumpAvailable = true;
+        }
 
         if (SprintTimer > 0f)
         {
@@ -61,11 +108,12 @@ public sealed class PlayerLocomotionRuntime
             SprintCooldownTimer -= deltaTime;
         }
 
-        // 状态机约束：仅处于可站立表面状态才允许刷新跳跃资格。
-        if (!canJumpSurface)
+        // 状态机约束：仅平台或空中宽限窗口内允许跳跃。
+        if (!canJumpSurface && !canAirborneGraceJump)
         {
             canJump = false;
             jumpQueued = false;
+            extraJumpQueued = false;
         }
 
         if (!canSprintSurface)
@@ -83,12 +131,26 @@ public sealed class PlayerLocomotionRuntime
             canJump = true;
         }
 
+        if (canAirborneGraceJump)
+        {
+            canJump = true;
+        }
+
         wasGrounded = isGrounded;
 
         if (canJump && jumpPressedThisFrame)
         {
             jumpQueued = true;
+            extraJumpQueued = false;
             canJump = false;
+        }
+
+        if (!canJump && allowExtraJump && preMoveState == PlayerLocomotionState.Airborne
+            && extraJumpAvailable && jumpPressedThisFrame)
+        {
+            jumpQueued = true;
+            extraJumpQueued = true;
+            extraJumpAvailable = false;
         }
 
         bool canSprint = canSprintSurface
@@ -100,5 +162,7 @@ public sealed class PlayerLocomotionRuntime
             SprintTimer = sprintDuration;
             SprintCooldownTimer = sprintCooldown;
         }
+
+        previousState = preMoveState;
     }
 }
