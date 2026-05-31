@@ -17,13 +17,16 @@ public class levelController : MonoBehaviour
     [SerializeField] private Transform truckParent;
 
     [Header("卡车网格生成")]
-    [SerializeField] private int truckRowCount = 5;
-    [SerializeField] private int truckColumnCount = 10;
+    [SerializeField] private int truckRowCount = 0;
+    [SerializeField] private int truckColumnCount = 0;
     [SerializeField] private float truckColumnSpacing = 3f;
     [SerializeField] private float truckRowSpacing = 3f;
     [SerializeField] private float middleRowZ = 0f;
     [SerializeField] private float truckSpawnY = 0f;
 
+    [Header("关卡 UI（胜利/失败）")]
+    [SerializeField] private GameObject winPanel;
+    [SerializeField] private GameObject losePanel;
     [Header("结束流程")]
     [SerializeField] private GameObject finishMenuPanel;
     [Tooltip("是否在玩家触地时触发 game_dead 事件。测试继续移动时可关闭。")]
@@ -35,10 +38,12 @@ public class levelController : MonoBehaviour
 
     private void Start()
     {
+        // 隐藏关卡 UI
+        if (winPanel != null) winPanel.SetActive(false);
+        if (losePanel != null) losePanel.SetActive(false);
+
         if (initializeOnStart)
-        {
             InitializeLevel();
-        }
     }
 
     public void InitializeLevel()
@@ -52,13 +57,13 @@ public class levelController : MonoBehaviour
             return;
         }
 
-        SpawnTrucks();
-        SpawnMainCharacter();
+        //SpawnTrucks();
+        //SpawnMainCharacter();
 
-        if (finishMenuPanel != null)
-        {
-            finishMenuPanel.SetActive(false);
-        }
+        //if (finishMenuPanel != null)
+        //{
+        //    finishMenuPanel.SetActive(false);
+        //}
     }
 
     public void NotifyPlayerReachedDestination(GameObject player)
@@ -105,10 +110,9 @@ public class levelController : MonoBehaviour
         game_finish?.Invoke();
         Debug.Log($"[levelController] game_finish 触发。player={player.name}");
 
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.TriggerVictory();
-        }
+        // 不再调用 UIManager，自己显示胜利面板并暂停
+        if (winPanel != null) winPanel.SetActive(true);
+        Time.timeScale = 0f;
     }
 
     private void TriggerGameDead(GameObject player)
@@ -116,10 +120,17 @@ public class levelController : MonoBehaviour
         game_dead?.Invoke();
         Debug.Log($"[levelController] game_dead 触发。player={player.name}");
 
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.TriggerGameOver();
-        }
+        // 不再调用 UIManager，自己显示失败面板并暂停
+        if (losePanel != null) losePanel.SetActive(true);
+        Time.timeScale = 0f;
+    }
+
+    // 供 UI 按钮调用的重新开始方法
+    public void RestartLevel()
+    {
+        Time.timeScale = 1f;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
     }
 
     private void SpawnTrucks()
