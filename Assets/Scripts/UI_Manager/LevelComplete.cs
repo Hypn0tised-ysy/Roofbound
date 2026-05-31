@@ -1,9 +1,11 @@
 ﻿using UnityEngine;
 using TMPro;
-
+using DG.Tweening;
 public class LevelComplete : MonoBehaviour
 {
     public TextMeshProUGUI finalTimeText; // 拖拽结算成绩的 Text
+    public Transform panelContent;
+
 
     // 被总控调用，传入最终成绩
     public void ShowVictory(float finalTime)
