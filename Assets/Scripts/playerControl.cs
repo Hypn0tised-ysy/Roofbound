@@ -155,6 +155,8 @@ public class playerControl : MonoBehaviour
     private bool isInputLockedByDeath;
     private bool isDead;
     private bool hasTriggeredGroundedDeath;
+    private bool hasTriggeredHazardDeath;
+    private bool isGameFinished;
 
     private MovementSkillId movementSkillId = MovementSkillId.None;
     private UtilitySkillId utilitySkillId = UtilitySkillId.None;
@@ -306,6 +308,7 @@ public class playerControl : MonoBehaviour
         if (levelControllerRef != null)
         {
             levelControllerRef.game_dead += OnGameDead;
+            levelControllerRef.game_finish += OnGameFinish;
         }
     }
 
@@ -314,6 +317,7 @@ public class playerControl : MonoBehaviour
         if (levelControllerRef != null)
         {
             levelControllerRef.game_dead -= OnGameDead;
+            levelControllerRef.game_finish -= OnGameFinish;
         }
 
         SkillSelectionStore.SelectionChanged -= OnSkillSelectionChanged;
@@ -415,16 +419,15 @@ public class playerControl : MonoBehaviour
 
     private void OnGameDead()
     {
-        Debug.Log("Dead!");
+        if (isDead) return;
         isDead = true;
+        Debug.Log("Dead!");
         ResetSlowTime();
-
         SetPlayerCanvasVisible(false);
 
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.TriggerGameOver();
-        }
+        // 通知 levelController 显示失败界面
+        if (levelControllerRef != null)
+            levelControllerRef.NotifyPlayerKilledByHazard(gameObject);
 
         if (!lockInputAfterGroundDead)
         {
@@ -432,6 +435,20 @@ public class playerControl : MonoBehaviour
         }
 
         isInputLockedByDeath = true;
+        inputSnapshot = default;
+    }
+
+    private void OnGameFinish()
+    {
+        if (isDead || isGameFinished) return;  // 防止重复触发
+        isGameFinished = true;
+
+        Debug.Log("游戏胜利，暂停玩家控制");
+        ResetSlowTime();
+        SetPlayerCanvasVisible(false);
+
+        // 锁定输入
+        isInputLockedByDeath = true;   // 复用死亡锁定字段，也可单独命名
         inputSnapshot = default;
     }
 
@@ -1218,6 +1235,21 @@ public class playerControl : MonoBehaviour
         if (hit.collider.GetComponent<ground>() != null)
         {
             return;
+        }
+
+        // 如果碰到的是卡车，不触发死亡
+        if (hit.collider.CompareTag("truck"))
+        {
+            // 是卡车，仅进行平台运动追踪
+            platformMotion.RegisterGroundHit(hit, FixedUp);
+            return;
+        }
+
+        // 碰到其他任何东西（地面、石头、建筑）都算死亡
+        if (!hasTriggeredHazardDeath && levelControllerRef != null)
+        {
+            hasTriggeredHazardDeath = true;
+            levelControllerRef.NotifyPlayerKilledByHazard(gameObject);
         }
 
         platformMotion.RegisterGroundHit(hit, FixedUp);

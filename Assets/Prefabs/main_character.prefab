@@ -541,7 +541,7 @@ Skybox:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 778837301111446925}
   m_Enabled: 1
-  m_CustomSkybox: {fileID: 2100000, guid: 4d0e0ffc7a6c1bf44b435e0b23260f8c, type: 2}
+  m_CustomSkybox: {fileID: 2100000, guid: 73324b55f67f54c7bbf43204788b8bbe, type: 2}
 --- !u!114 &778837301111446915
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -661,6 +661,7 @@ GameObject:
   - component: {fileID: 778837301594663483}
   - component: {fileID: 738771145}
   - component: {fileID: 738771144}
+  - component: {fileID: -3646433928842105546}
   m_Layer: 0
   m_Name: main_character
   m_TagString: Player
@@ -805,6 +806,22 @@ MonoBehaviour:
   lockInputAfterGroundDead: 1
   playerCanvasRoot: {fileID: 0}
   debugLocomotionState: 0
+--- !u!54 &-3646433928842105546
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 778837301594663480}
+  serializedVersion: 2
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &1095533024565716533
 GameObject:
   m_ObjectHideFlags: 0
