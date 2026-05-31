@@ -18,6 +18,9 @@ public class TruckFleetSpawner : MonoBehaviour
     [Header("关卡路线 (只需拖入父物体)")]
     public Transform pathParent;           // 包含所有路径点的父物体，子物体按顺序作为路径点
 
+    [Header("玩家生成")]
+    public GameObject playerPrefab;
+
     // ---------- 生命周期 ----------
     void Start()
     {
@@ -81,41 +84,43 @@ public class TruckFleetSpawner : MonoBehaviour
         System.Text.StringBuilder lastRowMsg = new System.Text.StringBuilder();
 
         // --- 双层循环生成所有卡车 ---
-        for (int z = 0; z < rows; z++)           // z：从近到远（根据生成坐标，-z方向越远）
+        for (int z = 0; z < rows; z++)
         {
-            for (int x = 0; x < columns; x++)    // x：从左到右
+            for (int x = 0; x < columns; x++)
             {
-                // 计算生成位置（世界坐标）
-                // 以Spawner自身为原点，使用其右方向（红色轴）作为横向，前方向（蓝色轴）作为纵向
                 Vector3 spawnPos = transform.position
-                                 + transform.right * (startX + x * spacingX)    // 横向偏移
-                                 - transform.forward * (z * spacingZ);         // 纵向偏移（负forward使z=0离Spawner最近）
+                                 + transform.right * (startX + x * spacingX)
+                                 - transform.forward * (z * spacingZ);
 
-                // 实例化卡车
                 GameObject newTruck = Instantiate(truckPrefab, spawnPos, transform.rotation);
                 SingleTruckAI truckAI = newTruck.GetComponent<SingleTruckAI>();
-
-                // 将路径点及配置参数注入每辆卡车
                 if (truckAI != null)
-                {
                     truckAI.InitData(levelConfig, pathWaypoints);
-                }
 
-                // 收集调试信息：第一排（z==0）
-                if (z == 0)
-                    firstRowMsg.Append($"[{x}] {spawnPos}  ");
-                // 最后一排（z == rows-1）
-                if (z == rows - 1)
-                    lastRowMsg.Append($"[{x}] {spawnPos}  ");
-
-                // 将摄像机跟随目标设为最后一排中间那辆卡车
+                // 摄像机跟随（可以保留原来的逻辑，建议恢复）
                 if (z == rows - 1 && x == columns / 2)
                 {
                     CameraFollow camFollow = Camera.main?.GetComponent<CameraFollow>();
                     if (camFollow != null)
                         camFollow.target = newTruck.transform;
                 }
+
+                if (z == 0) firstRowMsg.Append($"[{x}] {spawnPos}  ");
+                if (z == rows - 1) lastRowMsg.Append($"[{x}] {spawnPos}  ");
             }
+        }
+
+        // ========== 循环结束后生成玩家（只一次） ==========
+        if (playerPrefab != null)
+        {
+            int lastRowZ = rows - 1;
+            int midColX = columns / 2;
+            Vector3 playerSpawnPos = transform.position
+                                   + transform.right * (startX + midColX * spacingX)
+                                   - transform.forward * (lastRowZ * spacingZ);
+            playerSpawnPos += Vector3.up * 1.5f; // 高度偏移
+
+            Instantiate(playerPrefab, playerSpawnPos, transform.rotation);
         }
 
         // 打印首末两排坐标，方便检查生成布局
