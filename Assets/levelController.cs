@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 public class levelController : MonoBehaviour
@@ -57,13 +57,13 @@ public class levelController : MonoBehaviour
             return;
         }
 
-        //SpawnTrucks();
-        //SpawnMainCharacter();
+        SpawnTrucks();
+        SpawnMainCharacter();
 
-        //if (finishMenuPanel != null)
-        //{
-        //    finishMenuPanel.SetActive(false);
-        //}
+        if (finishMenuPanel != null)
+        {
+            finishMenuPanel.SetActive(false);
+        }
     }
 
     public void NotifyPlayerReachedDestination(GameObject player)

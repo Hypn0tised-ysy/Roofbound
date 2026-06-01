@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
@@ -29,6 +29,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private int selectedLevelIndex = 0;
 
     [Header("关卡内面板")]
+    [SerializeField] private GameObject hudPanel; // 🔴 1. 新增：HUD 槽位
     [SerializeField] private GameObject pauseMenuPanel;
     [SerializeField] private GameObject deadMenuPanel;
     [SerializeField] private GameObject finishMenuPanel;
@@ -128,6 +129,7 @@ public class UIManager : MonoBehaviour
         }
 
         selectedLevelIndex = Mathf.Clamp(index, 0, levelSceneNames.Length - 1);
+
         Debug.Log("selected level index: " + selectedLevelIndex);
     }
 
@@ -383,6 +385,8 @@ public class UIManager : MonoBehaviour
                 SetMenuPaused(false);
                 SetInputLocked(false);
                 HideCursor();
+                //  2. 新增：打游戏时，显示 HUD！
+                SetPanelVisible(hudPanel, true);
                 break;
             case UIState.Paused:
                 SetMenuPaused(true);
@@ -414,6 +418,8 @@ public class UIManager : MonoBehaviour
         SetPanelVisible(pauseMenuPanel, false);
         SetPanelVisible(deadMenuPanel, false);
         SetPanelVisible(finishMenuPanel, false);
+        //  3. 新增：切换状态清场时，隐藏 HUD
+        SetPanelVisible(hudPanel, false);
     }
 
     private void SetPanelVisible(GameObject panel, bool visible)
@@ -475,6 +481,8 @@ public class UIManager : MonoBehaviour
             finishMenuPanel = FindGameObjectInRoots(roots, "FinishMenu");
         }
 
+        // 🔴 4. 新增：切场景时，自动去抓取名字叫 "HUDPanel" 的物体
+        if (hudPanel == null) hudPanel = FindGameObjectInRoots(roots, "HUDPanel");
         ResolvePlayerControl();
     }
 
