@@ -1,10 +1,10 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
-    private static readonly string[] DefaultLevelSceneNames = { "level1-1", "level1-2" };
+    private static readonly string[] DefaultLevelSceneNames = { "Level01", "level1-2" };
 
     public enum UIState
     {
@@ -25,7 +25,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject optionsPanel;
 
     [Header("关卡选择")]
-    [SerializeField] private string[] levelSceneNames = new[] { "level1-1", "level1-2" };
+    [SerializeField] private string[] levelSceneNames = new[] { "Level01", "level1-2" };
     [SerializeField] private int selectedLevelIndex = 0;
 
     [Header("关卡内面板")]
