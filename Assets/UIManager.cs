@@ -36,6 +36,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject finishMenuPanel;
 
     public UIState CurrentState { get; private set; } = UIState.MainMenu;
+    public int SelectedLevelIndex => selectedLevelIndex;
     public bool IsMenuPaused { get; private set; }
     public bool IsInputLocked { get; private set; }
 
@@ -61,6 +62,20 @@ public class UIManager : MonoBehaviour
         baseFixedDeltaTime = Time.fixedDeltaTime;
         EnsureEventSystem();
         TryBindSceneReferences();
+        FixBrokenCanvasScales();
+    }
+
+    private void FixBrokenCanvasScales()
+    {
+        Canvas[] canvases = GetComponentsInChildren<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Transform canvasTransform = canvases[i].transform;
+            if (canvasTransform.localScale.sqrMagnitude < 0.001f)
+            {
+                canvasTransform.localScale = Vector3.one;
+            }
+        }
     }
 
     private void OnEnable()
@@ -164,6 +179,7 @@ public class UIManager : MonoBehaviour
 
     public void ShowAbilityPanel()
     {
+        SkillSelectionStore.RefreshAllAbilitySlots();
         SetState(UIState.AbilitySelect);
     }
 
@@ -333,12 +349,12 @@ public class UIManager : MonoBehaviour
         }
         else
         {
-            ApplyState(CurrentState);
+            ApplyState(CurrentState, CurrentState);
         }
 
-        // clear pending gameplay start flag when scene loads
         if (pendingGameplayStart && CurrentState == UIState.Playing)
         {
+            ResetHudTimer();
             pendingGameplayStart = false;
         }
     }
@@ -351,13 +367,18 @@ public class UIManager : MonoBehaviour
 
     private void SetState(UIState newState)
     {
+        UIState previousState = CurrentState;
         CurrentState = newState;
-        ApplyState(newState);
+        ApplyState(newState, previousState);
     }
 
-    private void ApplyState(UIState state)
+    private void ApplyState(UIState state, UIState previousState)
     {
-        HideAllPanels();
+        HideMenuPanels();
+
+        // 暂停时隐藏 HUD，避免同 Canvas 下 HUD 挡住 PauseMenu 射线；计时已在 ResetRunTimer 中单独管理
+        bool showHud = state == UIState.Playing;
+        SetPanelVisible(hudPanel, showHud);
 
         bool showPlayerCanvas = state == UIState.Playing;
         SetPlayerUICanvasVisible(showPlayerCanvas);
@@ -392,13 +413,17 @@ public class UIManager : MonoBehaviour
                 SetMenuPaused(false);
                 SetInputLocked(false);
                 HideCursor();
-                //  2. 新增：打游戏时，显示 HUD！
-                SetPanelVisible(hudPanel, true);
+                if (previousState == UIState.Paused)
+                {
+                    NotifyPlayerGameplayResumed();
+                }
                 break;
             case UIState.Paused:
                 SetMenuPaused(true);
                 SetInputLocked(true);
                 SetPanelVisible(pauseMenuPanel, true);
+                BringPanelToFront(pauseMenuPanel);
+                EnsureEventSystem();
                 ShowCursor();
                 break;
             case UIState.Dead:
@@ -416,7 +441,7 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private void HideAllPanels()
+    private void HideMenuPanels()
     {
         SetPanelVisible(MainMenu != null ? MainMenu.gameObject : null, false);
         SetPanelVisible(LevelSelect != null ? LevelSelect.gameObject : null, false);
@@ -425,7 +450,29 @@ public class UIManager : MonoBehaviour
         SetPanelVisible(pauseMenuPanel, false);
         SetPanelVisible(deadMenuPanel, false);
         SetPanelVisible(finishMenuPanel, false);
-        //  3. 新增：切换状态清场时，隐藏 HUD
+    }
+
+    private void ResetHudTimer()
+    {
+        ResolveHudPanel();
+        if (cachedHudPanel != null)
+        {
+            cachedHudPanel.ResetRunTimer();
+        }
+    }
+
+    private void NotifyPlayerGameplayResumed()
+    {
+        ResolvePlayerControl();
+        if (cachedPlayerControl != null)
+        {
+            cachedPlayerControl.NotifyGameplayResumed();
+        }
+    }
+
+    private void HideAllPanels()
+    {
+        HideMenuPanels();
         SetPanelVisible(hudPanel, false);
     }
 
@@ -434,6 +481,14 @@ public class UIManager : MonoBehaviour
         if (panel != null)
         {
             panel.SetActive(visible);
+        }
+    }
+
+    private void BringPanelToFront(GameObject panel)
+    {
+        if (panel != null)
+        {
+            panel.transform.SetAsLastSibling();
         }
     }
 
@@ -561,6 +616,12 @@ public class UIManager : MonoBehaviour
     {
         if (persistedEventSystem != null)
         {
+            if (!persistedEventSystem.gameObject.activeInHierarchy)
+            {
+                persistedEventSystem.gameObject.SetActive(true);
+            }
+
+            persistedEventSystem.enabled = true;
             return;
         }
 

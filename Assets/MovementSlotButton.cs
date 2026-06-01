@@ -64,21 +64,19 @@ public class MovementSlotButton : MonoBehaviour, IPointerClickHandler
         SkillSelectionData data = SkillSelectionStore.Load();
         string skillName = gameObject.name;
 
-        string current = data.movementSkillId;
-        data.movementSkillId = current == skillName ? NoneValue : skillName;
+        bool isCurrentlySelected = SkillSelectionStore.IsMovementSelected(data.movementSkillId, skillName);
+        data.movementSkillId = isCurrentlySelected ? NoneValue : skillName;
 
         SkillSelectionStore.Save(data);
         RefreshAllSlots();
     }
 
-    private void RefreshFromSavedSelection()
+    public void RefreshFromSavedSelection()
     {
         SkillSelectionData data = SkillSelectionStore.Load();
         string skillName = gameObject.name;
 
-        bool isSelected = !string.IsNullOrEmpty(data.movementSkillId)
-            && data.movementSkillId != NoneValue
-            && data.movementSkillId == skillName;
+        bool isSelected = SkillSelectionStore.IsMovementSelected(data.movementSkillId, skillName);
 
         SetBorderActive(isSelected);
     }

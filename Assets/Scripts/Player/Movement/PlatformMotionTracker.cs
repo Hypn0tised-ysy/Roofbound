@@ -22,9 +22,14 @@ public sealed class PlatformMotionTracker
             return;
         }
 
-        float dt = Mathf.Max(deltaTime, 0.0001f);
+        if (deltaTime <= 0f)
+        {
+            PlatformVelocity = Vector3.zero;
+            return;
+        }
+
         Vector3 currentPosition = CurrentPlatform.position;
-        PlatformVelocity = (currentPosition - lastPlatformPosition) / dt;
+        PlatformVelocity = (currentPosition - lastPlatformPosition) / deltaTime;
         lastPlatformPosition = currentPosition;
 
         // 接地期间持续刷新，保证离地时继承的是最新平台速度。
@@ -57,6 +62,23 @@ public sealed class PlatformMotionTracker
         }
 
         RefreshCurrentPlatform(isGrounded);
+    }
+
+    /// <summary>
+    /// 暂停恢复后重新对齐平台参考点，避免首帧平台速度异常导致错位。
+    /// </summary>
+    public void SyncPlatformAnchor()
+    {
+        if (CurrentPlatform == null)
+        {
+            PlatformVelocity = Vector3.zero;
+            InheritedPlatformVelocity = Vector3.zero;
+            return;
+        }
+
+        lastPlatformPosition = CurrentPlatform.position;
+        PlatformVelocity = Vector3.zero;
+        InheritedPlatformVelocity = Vector3.zero;
     }
 
     private void RefreshCurrentPlatform(bool isGrounded)

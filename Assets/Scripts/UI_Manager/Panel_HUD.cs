@@ -8,9 +8,8 @@ public class Panel_HUD : MonoBehaviour
 
     private float currentRunTime = 0f;
 
-    private void OnEnable()
+    public void ResetRunTimer()
     {
-        // HUD 每次随关卡开始显示时清零（UIManager 跨场景保留，需手动重置）
         currentRunTime = 0f;
         RefreshTimerText();
     }

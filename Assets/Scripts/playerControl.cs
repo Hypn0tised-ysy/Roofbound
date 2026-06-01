@@ -113,6 +113,8 @@ public class playerControl : MonoBehaviour
     [Header("测试开关")]
     [Tooltip("地面触发 dead 事件后是否锁定输入。测试阶段可关闭以继续移动。")]
     [SerializeField] private bool lockInputAfterGroundDead = false;
+    [Tooltip("左键按下时在控制台输出当前装备的能力。")]
+    [SerializeField] private bool logAbilitiesOnLeftClick = true;
 
     [Header("玩家 UI")]
     [Tooltip("玩家身上的 Canvas 根对象。暂停/死亡/通关时会自动隐藏。")]
@@ -263,9 +265,7 @@ public class playerControl : MonoBehaviour
         locomotionRuntime = new PlayerLocomotionRuntime();
 
         ApplySkillParameters();
-
-        LoadSkillSelection();
-        ResolveSkillOverrides();
+        InitializeSkillSelection();
 
         // 初始化跳跃状态：若开局即接地，则允许跳跃。
         isGrounded = controller != null && controller.isGrounded;
@@ -286,11 +286,6 @@ public class playerControl : MonoBehaviour
         if (utilitySkillId == UtilitySkillId.SlowTime)
         {
             EnsureTimeSlowVolume();
-            InitializeSlowTimeTimer();
-        }
-        else
-        {
-            slowTimeInitialized = false;
         }
 
         InitializeLocomotionStateMachine();
@@ -344,7 +339,19 @@ public class playerControl : MonoBehaviour
 
         inputSnapshot = inputReader.ReadSnapshot();
 
-        lookController.UpdateFromMouse(inputSnapshot.Look, mouseLookSensitivity, minPitch, maxPitch);
+        if (logAbilitiesOnLeftClick && inputSnapshot.PrimarySkillPressedThisFrame)
+        {
+            LogCurrentAbilitiesForDebug();
+        }
+
+        if (suppressLookFramesAfterResume > 0)
+        {
+            suppressLookFramesAfterResume--;
+        }
+        else
+        {
+            lookController.UpdateFromMouse(inputSnapshot.Look, mouseLookSensitivity, minPitch, maxPitch);
+        }
 
         isGrounded = controller != null && controller.isGrounded;
         PlayerLocomotionState preMoveState = ResolveLocomotionState();
@@ -471,6 +478,14 @@ public class playerControl : MonoBehaviour
             HasPlatform = platformMotion != null && platformMotion.CurrentPlatform != null,
             MoveInput = inputSnapshot.Move,
         };
+    }
+
+    private int suppressLookFramesAfterResume;
+
+    public void NotifyGameplayResumed()
+    {
+        suppressLookFramesAfterResume = 2;
+        platformMotion?.SyncPlatformAnchor();
     }
 
     public void SetPlayerCanvasVisible(bool visible)
@@ -737,9 +752,72 @@ public class playerControl : MonoBehaviour
         ApplySkillSelection(data);
     }
 
+    private void LogCurrentAbilitiesForDebug()
+    {
+        SkillSelectionData saved = SkillSelectionStore.Load();
+        MovementSkillId savedMovement = SkillSelectionStore.ResolveMovementId(saved?.movementSkillId);
+        UtilitySkillId savedUtility = SkillSelectionStore.ResolveUtilityId(saved?.utilitySkillId);
+
+        string movementSource = savedMovement != MovementSkillId.None
+            ? "UI/存档"
+            : (useSkillOverrides ? "预制体默认" : "无");
+        string utilitySource = savedUtility != UtilitySkillId.None
+            ? "UI/存档"
+            : (useSkillOverrides ? "预制体默认" : "无");
+
+        Debug.Log(
+            $"[playerControl] 左键调试 | 移动={movementSkillName} ({movementSkillId}) [{movementSource}] | 实用={utilitySkillName} ({utilitySkillId}) [{utilitySource}]",
+            this);
+    }
+
     private void OnSkillSelectionChanged(SkillSelectionData data)
     {
         ApplySkillSelection(data);
+        ApplyPrefabOverridesForEmptySlots();
+        FinalizeUtilitySkillSetup();
+    }
+
+    private void InitializeSkillSelection()
+    {
+        LoadSkillSelection();
+        ApplyPrefabOverridesForEmptySlots();
+        FinalizeUtilitySkillSetup();
+    }
+
+    /// <summary>
+    /// UI/存档优先；仅当某槽位为 None 时，才用预制体 override 作为关卡默认。
+    /// </summary>
+    private void ApplyPrefabOverridesForEmptySlots()
+    {
+        if (!useSkillOverrides)
+        {
+            return;
+        }
+
+        if (movementSkillId == MovementSkillId.None && overrideMovementSkillId != MovementSkillId.None)
+        {
+            movementSkillId = overrideMovementSkillId;
+            movementSkillName = SkillSelectionStore.ToUiMovementName(overrideMovementSkillId);
+        }
+
+        if (utilitySkillId == UtilitySkillId.None && overrideUtilitySkillId != UtilitySkillId.None)
+        {
+            utilitySkillId = overrideUtilitySkillId;
+            utilitySkillName = SkillSelectionStore.ToUiUtilityName(overrideUtilitySkillId);
+        }
+    }
+
+    private void FinalizeUtilitySkillSetup()
+    {
+        if (utilitySkillId == UtilitySkillId.SlowTime)
+        {
+            EnsureTimeSlowVolume();
+            InitializeSlowTimeTimer();
+        }
+        else
+        {
+            slowTimeInitialized = false;
+        }
     }
 
     private void ApplySkillSelection(SkillSelectionData data)
@@ -764,30 +842,60 @@ public class playerControl : MonoBehaviour
         }
     }
 
-    private void ResolveSkillOverrides()
+    private void ApplySkillFromOverrides()
     {
         if (!useSkillOverrides)
         {
-            Debug.Log("[playerControl] 技能覆盖已关闭，使用存档的技能选择。");
             return;
         }
 
-        Debug.Log($"[playerControl] 使用技能覆盖：移动技能={overrideMovementSkillId}, 实用技能={overrideUtilitySkillId}");
         movementSkillId = overrideMovementSkillId;
         utilitySkillId = overrideUtilitySkillId;
-        movementSkillName = overrideMovementSkillId.ToString();
-        utilitySkillName = overrideUtilitySkillId.ToString();
+        movementSkillName = SkillSelectionStore.ToUiMovementName(overrideMovementSkillId);
+        utilitySkillName = SkillSelectionStore.ToUiUtilityName(overrideUtilitySkillId);
+    }
 
-        if (utilitySkillId == UtilitySkillId.SlowTime)
+    /// <summary>
+    /// 将预制体上配置的技能写入 SkillSelectionStore，供 Abilities 界面显示。
+    /// </summary>
+    public void PublishConfiguredSkillsToStore(bool notifyListeners = false)
+    {
+        if (!useSkillOverrides)
         {
-            Debug.Log("[playerControl] 实用技能覆盖为 SlowTime，确保 TimeSlowVolume 已准备就绪。");
-            EnsureTimeSlowVolume();
-            InitializeSlowTimeTimer();
+            return;
         }
-        else
+
+        SkillSelectionStore.SaveConfiguredSkills(
+            overrideMovementSkillId,
+            overrideUtilitySkillId,
+            notifyListeners);
+    }
+
+    /// <summary>
+    /// 从关卡场景中的玩家预制体资产同步默认技能（主菜单预览用）。
+    /// </summary>
+    public static void PublishPrefabSkillsToStore(GameObject playerPrefab, bool notifyListeners = false)
+    {
+        if (playerPrefab == null)
         {
-            slowTimeInitialized = false;
+            return;
         }
+
+        playerControl prefabPlayer = playerPrefab.GetComponent<playerControl>();
+        if (prefabPlayer == null)
+        {
+            return;
+        }
+
+        prefabPlayer.PublishConfiguredSkillsToStore(notifyListeners);
+    }
+
+    /// <summary>
+    /// 关卡生成后再次应用预制体技能（仅影响运行时玩家，不写回存档）。
+    /// </summary>
+    public void EnsureSkillsSyncedWithPrefab()
+    {
+        InitializeSkillSelection();
     }
 
     private void ApplySkillParameters()
