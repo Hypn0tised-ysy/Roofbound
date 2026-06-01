@@ -1,31 +1,37 @@
 ﻿using UnityEngine;
-using DG.Tweening;
+using DG.Tweening; // 引入神级动效插件
 
 public class GameOver : MonoBehaviour
 {
     [SerializeField] private bool restartOnAnyKey = true;
-    private bool isVisible;
-    // ================= 给总控 UI_Controller 调用的方法 =================
+    public Transform panelContent; 
 
-    public void ShowGameOver()
+    private bool isVisible;
+
+    // 核心改动：删除了 ShowGameOver() 与 HidePanel()。
+    // 因为 UIManager.SetState(UIState.Dead) 会自动控制此面板的 SetActive()。
+    // 我们用 OnEnable() 来拦截显示瞬间，并触发动效！
+    private void OnEnable()
     {
-        gameObject.SetActive(true); // 显示自己
         isVisible = true;
 
-        // 玩家死了，需要把鼠标指针还给玩家，方便点击按钮
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        if (UIManager.Instance != null)
+        // ================= 🪄 魔法动效时间 =================
+        if (panelContent != null)
         {
-            UIManager.Instance.SetMenuPaused(false);
-            UIManager.Instance.SetInputLocked(true);
+            // 杀掉之前的动画防止鬼畜
+            panelContent.DOKill();
+
+            // a. 瞬间缩小为 0 (肉眼看不见)
+            panelContent.localScale = Vector3.zero;
+
+            // b. 花 0.4 秒，用带弹簧效果的曲线 (OutBack) 弹出来
+            // 死亡画面不要拖泥带水，所以时间设为 0.4f
+            panelContent.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
         }
     }
 
-    public void HidePanel()
+    private void OnDisable()
     {
-        gameObject.SetActive(false); // 隐藏自己
         isVisible = false;
     }
 
@@ -34,33 +40,32 @@ public class GameOver : MonoBehaviour
     // 当玩家点击 "Restart" (重开) 按钮时触发
     public void OnClickRestart()
     {
-        HidePanel(); // 自己隐藏
+        // 注意：不再需要写 HidePanel() 和 gameObject.SetActive(false)
+        // 因为调用 RestartLevel 时，UIManager 会自动清场！
 
-        // 通知总控：重新开始游戏流程！
         if (UIManager.Instance != null)
         {
             UIManager.Instance.RestartLevel();
+            Debug.Log("UI -> 发送重新加载当前关卡的指令！");
         }
-
-        // 【重要联调点】：这里后续需要发消息给 GameManager，告诉它重新加载当前关卡
-        Debug.Log("UI -> 发送重新加载当前关卡的指令！");
     }
 
     // 当玩家点击 "Main Menu" (返回主菜单) 按钮时触发
     public void OnClickMainMenu()
     {
-        HidePanel(); // 自己隐藏
-
-        // 通知主菜单面板显示出来
         if (UIManager.Instance != null)
         {
-            UIManager.Instance.ShowMainMenu();
+            // 给总管留纸条，下个场景切到 main
+            UIManager.Instance.RequestShowMainMenuOnNextSceneLoad();
         }
 
-        // 【重要联调点】：这里后续需要发消息给 GameManager 清理当前场景数据
+        // 死亡时时间是正常的，所以直接加载场景即可
+        UnityEngine.SceneManagement.SceneManager.LoadScene("main");
+
         Debug.Log("UI -> 玩家放弃重试，返回主菜单！");
     }
 
+    // 跑酷游戏神级体验：按任意键光速重开
     private void Update()
     {
         if (!restartOnAnyKey || !isVisible)
@@ -68,6 +73,7 @@ public class GameOver : MonoBehaviour
             return;
         }
 
+        // 如果按下了任意键，立刻重开！
         if (Input.anyKeyDown)
         {
             OnClickRestart();
