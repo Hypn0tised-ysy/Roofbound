@@ -13,22 +13,15 @@ public class LevelComplete : MonoBehaviour
     // 所以，我们直接用 Unity 的 OnEnable() 生命周期来拦截面板弹出的瞬间！
     private void OnEnable()
     {
-        // 1. 尝试去获取 HUD 里的最终成绩
         float finalTime = 0f;
-        Panel_HUD hud = FindObjectOfType<Panel_HUD>();
-        if (hud != null)
+        if (UIManager.Instance != null)
         {
-            finalTime = hud.GetFinalTime();
+            finalTime = UIManager.Instance.GetRunTime();
         }
-
-        // 2. 格式化并显示时间
-        int m = Mathf.FloorToInt(finalTime / 60F);
-        int s = Mathf.FloorToInt(finalTime % 60F);
-        int ms = Mathf.FloorToInt((finalTime * 100F) % 100F);
 
         if (finalTimeText != null)
         {
-            finalTimeText.text = "Your Time: " + string.Format("{0:00}:{1:00}.{2:00}", m, s, ms);
+            finalTimeText.text = "Your Time: " + Panel_HUD.FormatTime(finalTime);
         }
 
         // ================= 🪄 魔法动效时间 =================

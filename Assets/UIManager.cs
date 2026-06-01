@@ -1,4 +1,5 @@
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
@@ -44,6 +45,8 @@ public class UIManager : MonoBehaviour
     private bool pendingShowMainMenuAfterLoad;
     private bool pendingShowLevelSelectAfterLoad;
     private playerControl cachedPlayerControl;
+    private Panel_HUD cachedHudPanel;
+    private static EventSystem persistedEventSystem;
 
     private void Awake()
     {
@@ -56,6 +59,7 @@ public class UIManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         baseFixedDeltaTime = Time.fixedDeltaTime;
+        EnsureEventSystem();
         TryBindSceneReferences();
     }
 
@@ -87,10 +91,6 @@ public class UIManager : MonoBehaviour
         else if (CurrentState == UIState.Paused && Input.GetKeyDown(KeyCode.Escape))
         {
             HidePauseMenu();
-        }
-        else if (CurrentState == UIState.Dead && Input.anyKeyDown)
-        {
-            ReplayCurrentLevel();
         }
     }
 
@@ -275,6 +275,12 @@ public class UIManager : MonoBehaviour
         SetState(UIState.Finished);
     }
 
+    public float GetRunTime()
+    {
+        ResolveHudPanel();
+        return cachedHudPanel != null ? cachedHudPanel.GetFinalTime() : 0f;
+    }
+
     public void TriggerGameOver()
     {
         Debug.Log("show dead panel");
@@ -310,6 +316,7 @@ public class UIManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        CleanupDuplicateEventSystems();
         TryBindSceneReferences();
         cachedPlayerControl = null;
         // If we were requested to show Level Select on the next load, do that now
@@ -395,7 +402,7 @@ public class UIManager : MonoBehaviour
                 ShowCursor();
                 break;
             case UIState.Dead:
-                SetMenuPaused(false);
+                SetMenuPaused(true);
                 SetInputLocked(true);
                 SetPanelVisible(deadMenuPanel, true);
                 ShowCursor();
@@ -483,7 +490,22 @@ public class UIManager : MonoBehaviour
 
         // 🔴 4. 新增：切场景时，自动去抓取名字叫 "HUDPanel" 的物体
         if (hudPanel == null) hudPanel = FindGameObjectInRoots(roots, "HUDPanel");
+        cachedHudPanel = null;
+        ResolveHudPanel();
         ResolvePlayerControl();
+    }
+
+    private void ResolveHudPanel()
+    {
+        if (cachedHudPanel != null)
+        {
+            return;
+        }
+
+        if (hudPanel != null)
+        {
+            cachedHudPanel = hudPanel.GetComponent<Panel_HUD>();
+        }
     }
 
     private void ResolvePlayerControl()
@@ -533,5 +555,46 @@ public class UIManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private void EnsureEventSystem()
+    {
+        if (persistedEventSystem != null)
+        {
+            return;
+        }
+
+        EventSystem sceneEventSystem = FindObjectOfType<EventSystem>();
+        if (sceneEventSystem != null)
+        {
+            persistedEventSystem = sceneEventSystem;
+        }
+        else
+        {
+            GameObject eventSystemObject = new GameObject("EventSystem");
+            persistedEventSystem = eventSystemObject.AddComponent<EventSystem>();
+            eventSystemObject.AddComponent<StandaloneInputModule>();
+        }
+
+        DontDestroyOnLoad(persistedEventSystem.gameObject);
+    }
+
+    private void CleanupDuplicateEventSystems()
+    {
+        if (persistedEventSystem == null)
+        {
+            EnsureEventSystem();
+        }
+
+        EventSystem[] eventSystems = FindObjectsOfType<EventSystem>();
+        for (int i = 0; i < eventSystems.Length; i++)
+        {
+            if (eventSystems[i] == persistedEventSystem)
+            {
+                continue;
+            }
+
+            Destroy(eventSystems[i].gameObject);
+        }
     }
 }

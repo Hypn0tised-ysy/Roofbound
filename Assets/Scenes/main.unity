@@ -4874,7 +4874,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b222192a18507b84fbb05b08f8d86569, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  restartOnAnyKey: 1
+  restartOnAnyKey: 0
   panelContent: {fileID: 685922551}
 --- !u!114 &1158711207
 MonoBehaviour:
@@ -8357,15 +8357,19 @@ PrefabInstance:
       objectReference: {fileID: 91267977}
     - target: {fileID: 7405231588021203409, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
       propertyPath: levelSceneNames.Array.size
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 7405231588021203409, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
       propertyPath: levelSceneNames.Array.data[0]
-      value: Level01
+      value: level01
       objectReference: {fileID: 0}
     - target: {fileID: 7405231588021203409, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
       propertyPath: levelSceneNames.Array.data[1]
-      value: level1-2
+      value: level02
+      objectReference: {fileID: 0}
+    - target: {fileID: 7405231588021203409, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
+      propertyPath: levelSceneNames.Array.data[2]
+      value: level03
       objectReference: {fileID: 0}
     - target: {fileID: 7405231588026457001, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
       propertyPath: m_Type
@@ -8526,6 +8530,18 @@ PrefabInstance:
     - target: {fileID: 7405231589168492304, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
       propertyPath: m_IsActive
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7405231589168492308, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
+      propertyPath: levelSceneNames.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7405231589168492308, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
+      propertyPath: levelSceneNames.Array.data[1]
+      value: level02
+      objectReference: {fileID: 0}
+    - target: {fileID: 7405231589168492308, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
+      propertyPath: levelSceneNames.Array.data[2]
+      value: level03
       objectReference: {fileID: 0}
     - target: {fileID: 7405231589244680115, guid: baefa45d4e63f564c969845aac02de4c, type: 3}
       propertyPath: m_Sprite
