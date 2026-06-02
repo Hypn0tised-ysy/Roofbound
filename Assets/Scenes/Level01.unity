@@ -1313,6 +1313,7 @@ GameObject:
   m_Component:
   - component: {fileID: 976973172}
   - component: {fileID: 976973171}
+  - component: {fileID: 976973173}
   m_Layer: 0
   m_Name: BGM
   m_TagString: Untagged
@@ -1431,6 +1432,19 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &976973173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 976973170}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0594e0c6d5901f14889a5c9ebe58b5ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioSource: {fileID: 0}
 --- !u!1001 &1005137499
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2472,6 +2486,14 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1982200307735579072, guid: 10132802a94d22f47b3fd9fe54d6774e, type: 3}
+      propertyPath: winClip
+      value: 
+      objectReference: {fileID: 8300000, guid: 1abdff40af9fb584eab9db7e78fb8a73, type: 3}
+    - target: {fileID: 1982200307735579072, guid: 10132802a94d22f47b3fd9fe54d6774e, type: 3}
+      propertyPath: loseClip
+      value: 
+      objectReference: {fileID: 8300000, guid: 4d64b98bdd377d84d93a84ddcb924294, type: 3}
+    - target: {fileID: 1982200307735579072, guid: 10132802a94d22f47b3fd9fe54d6774e, type: 3}
       propertyPath: winPanel
       value: 
       objectReference: {fileID: 0}
@@ -2479,6 +2501,10 @@ PrefabInstance:
       propertyPath: losePanel
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 1982200307735579072, guid: 10132802a94d22f47b3fd9fe54d6774e, type: 3}
+      propertyPath: bgmController
+      value: 
+      objectReference: {fileID: 976973173}
     - target: {fileID: 1982200307735579072, guid: 10132802a94d22f47b3fd9fe54d6774e, type: 3}
       propertyPath: truckRowCount
       value: 0
