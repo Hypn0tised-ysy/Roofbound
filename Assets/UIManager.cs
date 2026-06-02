@@ -49,6 +49,9 @@ public class UIManager : MonoBehaviour
     private Panel_HUD cachedHudPanel;
     private static EventSystem persistedEventSystem;
 
+    private BGMController cachedBgmController;
+    private AudioSource cachedBgmAudioSource;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -63,6 +66,7 @@ public class UIManager : MonoBehaviour
         EnsureEventSystem();
         TryBindSceneReferences();
         FixBrokenCanvasScales();
+        CacheBGM();
     }
 
     private void FixBrokenCanvasScales()
@@ -357,6 +361,10 @@ public class UIManager : MonoBehaviour
             ResetHudTimer();
             pendingGameplayStart = false;
         }
+
+        cachedBgmController = null;
+        cachedBgmAudioSource = null;
+        CacheBGM();
     }
 
     // Request that when the next scene loads, UIManager should switch to MainMenu state.
@@ -415,6 +423,7 @@ public class UIManager : MonoBehaviour
                 HideCursor();
                 if (previousState == UIState.Paused)
                 {
+                    ResumeBGM();
                     NotifyPlayerGameplayResumed();
                 }
                 break;
@@ -425,6 +434,7 @@ public class UIManager : MonoBehaviour
                 BringPanelToFront(pauseMenuPanel);
                 EnsureEventSystem();
                 ShowCursor();
+                PauseBGM();
                 break;
             case UIState.Dead:
                 SetMenuPaused(true);
@@ -656,6 +666,54 @@ public class UIManager : MonoBehaviour
             }
 
             Destroy(eventSystems[i].gameObject);
+        }
+    }
+
+    private void PauseBGM()
+    {
+        CacheBGM();
+        if (cachedBgmAudioSource != null && cachedBgmAudioSource.isPlaying)
+            cachedBgmAudioSource.Pause();
+    }
+
+    private void ResumeBGM()
+    {
+        CacheBGM();
+        if (cachedBgmAudioSource != null && cachedBgmAudioSource.clip != null)
+            cachedBgmAudioSource.UnPause();
+    }
+
+    // 缓存当前场景的 BGM 引用（自动查找）
+    private void CacheBGM()
+    {
+        if (cachedBgmController != null)
+            return;
+
+        // 优先找 BGMController 组件
+        cachedBgmController = FindObjectOfType<BGMController>();
+        if (cachedBgmController != null && cachedBgmController.audioSource != null)
+        {
+            cachedBgmAudioSource = cachedBgmController.audioSource;
+            return;
+        }
+
+        // 如果没有 BGMController，找名为 "BGM" 的物体的 AudioSource
+        GameObject bgmObj = GameObject.Find("BGM");
+        if (bgmObj != null)
+            cachedBgmAudioSource = bgmObj.GetComponent<AudioSource>();
+
+        // 保底：找场景中第一个正在播放的循环 AudioSource
+        if (cachedBgmAudioSource == null)
+        {
+            AudioSource[] sources = FindObjectsOfType<AudioSource>();
+            foreach (var s in sources)
+            {
+                if (s.loop && s.isPlaying)
+                {
+                    cachedBgmAudioSource = s;
+                    break;
+                }
+            }
         }
     }
 }

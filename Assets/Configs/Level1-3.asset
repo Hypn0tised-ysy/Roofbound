@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fac6c5c1267184549b6492f11b116572, type: 3}
   m_Name: Level1-3
   m_EditorClassIdentifier: 
-  rows: 10
+  rows: 15
   columns: 3
-  spacingX: 10
-  spacingZ: 40
+  spacingX: 18
+  spacingZ: 30
   truckMaxSpeed: 25
   speedVariance: 0
   truckMotorForce: 8000

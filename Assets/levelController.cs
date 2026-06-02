@@ -33,6 +33,11 @@ public class levelController : MonoBehaviour
     [Tooltip("是否在玩家触地时触发 game_dead 事件。测试继续移动时可关闭。")]
     [SerializeField] private bool triggerDeadOnGroundHit = false;
 
+    [Header("背景音乐控制")]
+    [SerializeField] private BGMController bgmController;
+    [SerializeField] private AudioClip winClip;
+    [SerializeField] private AudioClip loseClip;
+
     private GameObject spawnedMainCharacter;
     private bool isGameFinished;
     private bool isGameDead;
@@ -110,6 +115,8 @@ public class levelController : MonoBehaviour
         game_finish?.Invoke();
         Debug.Log($"[levelController] game_finish 触发。player={player.name}");
 
+        bgmController?.PlayOnce(winClip);
+
         if (UIManager.Instance != null)
         {
             UIManager.Instance.TriggerVictory();
@@ -125,6 +132,10 @@ public class levelController : MonoBehaviour
     {
         game_dead?.Invoke();
         Debug.Log($"[levelController] game_dead 触发。player={player.name}");
+
+        if(bgmController != null) bgmController.StopBGM();
+
+        bgmController?.PlayOnce(loseClip);
 
         if (UIManager.Instance != null)
         {
