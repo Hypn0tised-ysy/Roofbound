@@ -107,9 +107,9 @@ public class DatabaseManager : MonoBehaviour
         if (Convert.ToInt32(result.Rows[0][0]) == 0)
         {
             // 插入测试关卡
-            ExecuteNonQuery("INSERT INTO LEVEL_INFO (Level_Name, Difficulty, Target_Time_3Star, Target_Time_2Star) VALUES ('赛博都市-01', 1, 60.0, 90.0)");
-            ExecuteNonQuery("INSERT INTO LEVEL_INFO (Level_Name, Difficulty, Target_Time_3Star, Target_Time_2Star) VALUES ('暗黑森林-02', 2, 120.0, 180.0)");
-            ExecuteNonQuery("INSERT INTO LEVEL_INFO (Level_Name, Difficulty, Target_Time_3Star, Target_Time_2Star) VALUES ('火焰山-03', 3, 180.0, 240.0)");
+            ExecuteNonQuery("INSERT INTO LEVEL_INFO (Level_Name, Difficulty, Target_Time_3Star, Target_Time_2Star) VALUES ('Level01', 1, 60.0, 90.0)");
+            ExecuteNonQuery("INSERT INTO LEVEL_INFO (Level_Name, Difficulty, Target_Time_3Star, Target_Time_2Star) VALUES ('Level02', 2, 120.0, 180.0)");
+            ExecuteNonQuery("INSERT INTO LEVEL_INFO (Level_Name, Difficulty, Target_Time_3Star, Target_Time_2Star) VALUES ('Level03', 3, 180.0, 240.0)");
             Debug.Log("已插入测试关卡数据");
         }
     }

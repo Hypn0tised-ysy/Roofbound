@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class levelController : MonoBehaviour
 {
@@ -24,7 +25,7 @@ public class levelController : MonoBehaviour
     [SerializeField] private float middleRowZ = 0f;
     [SerializeField] private float truckSpawnY = 0f;
 
-    [Header("关卡 UI（胜利/失败）")]
+    [Header("关卡 UI（胜利/失败，仅无 UIManager 时使用）")]
     [SerializeField] private GameObject winPanel;
     [SerializeField] private GameObject losePanel;
     [Header("结束流程")]
@@ -38,7 +39,6 @@ public class levelController : MonoBehaviour
 
     private void Start()
     {
-        // 隐藏关卡 UI
         if (winPanel != null) winPanel.SetActive(false);
         if (losePanel != null) losePanel.SetActive(false);
 
@@ -57,13 +57,13 @@ public class levelController : MonoBehaviour
             return;
         }
 
-        //SpawnTrucks();
-        //SpawnMainCharacter();
+        SpawnTrucks();
+        SpawnMainCharacter();
 
-        //if (finishMenuPanel != null)
-        //{
-        //    finishMenuPanel.SetActive(false);
-        //}
+        if (finishMenuPanel != null)
+        {
+            finishMenuPanel.SetActive(false);
+        }
     }
 
     public void NotifyPlayerReachedDestination(GameObject player)
@@ -110,9 +110,15 @@ public class levelController : MonoBehaviour
         game_finish?.Invoke();
         Debug.Log($"[levelController] game_finish 触发。player={player.name}");
 
-        // 不再调用 UIManager，自己显示胜利面板并暂停
-        if (winPanel != null) winPanel.SetActive(true);
-        Time.timeScale = 0f;
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.TriggerVictory();
+        }
+        else if (winPanel != null)
+        {
+            winPanel.SetActive(true);
+            Time.timeScale = 0f;
+        }
     }
 
     private void TriggerGameDead(GameObject player)
@@ -120,17 +126,28 @@ public class levelController : MonoBehaviour
         game_dead?.Invoke();
         Debug.Log($"[levelController] game_dead 触发。player={player.name}");
 
-        // 不再调用 UIManager，自己显示失败面板并暂停
-        if (losePanel != null) losePanel.SetActive(true);
-        Time.timeScale = 0f;
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.TriggerGameOver();
+        }
+        else if (losePanel != null)
+        {
+            losePanel.SetActive(true);
+            Time.timeScale = 0f;
+        }
     }
 
-    // 供 UI 按钮调用的重新开始方法
     public void RestartLevel()
     {
         Time.timeScale = 1f;
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.RestartLevel();
+            return;
+        }
+
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     private void SpawnTrucks()
@@ -153,7 +170,6 @@ public class levelController : MonoBehaviour
         int spawnIndex = 0;
         for (int row = 0; row < truckRowCount; row++)
         {
-            // 文档要求中间一排 z=0，其他排按行距向 +z/-z 方向递进。
             float rowZ = middleRowZ + (row - truckRowCount / 2f) * truckRowSpacing;
 
             for (int col = 0; col < truckColumnCount; col++)
@@ -165,7 +181,6 @@ public class levelController : MonoBehaviour
                 truck.name = $"Truck_{spawnIndex:D2}";
                 spawnIndex++;
 
-                // 不覆盖速度，保持 truck_movement 从 truck_config 读取默认参数。
                 truck_movement movement = truck.GetComponent<truck_movement>();
                 if (movement != null)
                 {
@@ -177,6 +192,13 @@ public class levelController : MonoBehaviour
 
     private void SpawnMainCharacter()
     {
+        TruckFleetSpawner fleetSpawner = FindObjectOfType<TruckFleetSpawner>();
+        if (fleetSpawner != null && fleetSpawner.playerPrefab != null)
+        {
+            Debug.Log("[levelController] 检测到 TruckFleetSpawner，跳过 levelController 生成主角。");
+            return;
+        }
+
         if (configAsset.mainCharacterPrefab == null)
         {
             Debug.LogError("[levelController] level1_config 未配置 mainCharacterPrefab。");

@@ -28,7 +28,7 @@ RectTransform:
   m_GameObject: {fileID: 688931325777261585}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 688931326213629856}
@@ -2692,7 +2692,9 @@ MonoBehaviour:
   LevelSelect: {fileID: 7405231589168492308}
   abilityPanel: {fileID: 7405231588861891555}
   optionsPanel: {fileID: 7405231588855729740}
-  levelSceneNames: []
+  levelSceneNames:
+  - Level01
+  - level1-2
   selectedLevelIndex: 0
   pauseMenuPanel: {fileID: 688931326089074358}
   deadMenuPanel: {fileID: 688931326213629857}
@@ -7370,7 +7372,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d250bfda97ddcc40a1896e637490e9a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  levelSceneNames: []
+  levelSceneNames:
+  - Level01
+  - level1-2
   defaultLevelIndex: 0
 --- !u!1 &7405231589232808230
 GameObject:
@@ -8996,7 +9000,7 @@ RectTransform:
   m_GameObject: {fileID: 7405231589819839342}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7405231589475425454}

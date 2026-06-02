@@ -15,6 +15,17 @@ public class LevelSelect : MonoBehaviour
         selectedLevelIndex = Mathf.Clamp(defaultLevelIndex, 0, Mathf.Max(0, levelSceneNames.Length - 1));
     }
 
+    private void OnEnable()
+    {
+        // 瞬间让白框套到默认关卡或者上次选中的关卡上
+        UI_SliderFrame sliderAnim = GetComponent<UI_SliderFrame>();
+        if (sliderAnim != null)
+        {
+            // true 代表瞬间移动（不播滑动动画）
+            sliderAnim.MoveFrameTo(selectedLevelIndex, true);
+        }
+    }
+
     // 点击 "Back" 按钮绑定此方法
     public void OnClickBack()
     {
@@ -35,6 +46,11 @@ public class LevelSelect : MonoBehaviour
         }
 
         selectedLevelIndex = Mathf.Clamp(index, 0, levelSceneNames.Length - 1);
+        UI_SliderFrame sliderAnim = GetComponent<UI_SliderFrame>();
+        if (sliderAnim != null)
+        {
+            sliderAnim.MoveFrameTo(selectedLevelIndex, false);
+        }
     }
 
     public void OnClickPlay()

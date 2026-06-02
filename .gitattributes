@@ -2,6 +2,8 @@
 *.unity text
 *.prefab text
 *.asset text
+# Baked lighting is binary (NativeFormatImporter), not YAML text.
+**/LightingData.asset -text
 *.mat text
 *.anim text
 *.controller text
