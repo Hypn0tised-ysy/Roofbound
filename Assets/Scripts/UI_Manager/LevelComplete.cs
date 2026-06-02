@@ -46,6 +46,7 @@ public class LevelComplete : MonoBehaviour
         if (bestTimeText != null)
         {
             bestTimeText.text = bestLine;
+            bestTimeText.ForceMeshUpdate();
         }
         else if (finalTimeText != null)
         {
