@@ -3984,17 +3984,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2191666470857331508, guid: 8b63f536dcb9512418bb18c53c2565c6, type: 3}
   m_PrefabInstance: {fileID: 1479547383}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1189431540 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1982200307735579072, guid: 10132802a94d22f47b3fd9fe54d6774e, type: 3}
-  m_PrefabInstance: {fileID: 1943725060}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 125e73cfa1a06894a8056e4f7f2ea44d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &1293666092
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5617,7 +5606,7 @@ PrefabInstance:
     - target: {fileID: 5181107084735700362, guid: 18ffb8c4e09efad47afb9041caadc172, type: 3}
       propertyPath: levelControllerRef
       value: 
-      objectReference: {fileID: 1189431540}
+      objectReference: {fileID: 0}
     - target: {fileID: 5181107084735700362, guid: 18ffb8c4e09efad47afb9041caadc172, type: 3}
       propertyPath: forceForwardOnAwake
       value: 0

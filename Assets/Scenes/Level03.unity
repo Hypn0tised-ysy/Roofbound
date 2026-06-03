@@ -1458,6 +1458,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: destination
       objectReference: {fileID: 0}
+    - target: {fileID: 5181107084735700362, guid: 18ffb8c4e09efad47afb9041caadc172, type: 3}
+      propertyPath: levelControllerRef
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 8063174104631110564, guid: 18ffb8c4e09efad47afb9041caadc172, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
