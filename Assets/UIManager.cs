@@ -47,6 +47,9 @@ public class UIManager : MonoBehaviour
     private bool pendingShowLevelSelectAfterLoad;
     private playerControl cachedPlayerControl;
     private Panel_HUD cachedHudPanel;
+    private float gameplayRunTime;
+    private float lastVictoryRunTime;
+    private bool hasVictorySnapshot;
     private static EventSystem persistedEventSystem;
 
     private BGMController cachedBgmController;
@@ -103,6 +106,11 @@ public class UIManager : MonoBehaviour
 
     private void Update()
     {
+        if (CurrentState == UIState.Playing && Time.timeScale > 0f)
+        {
+            gameplayRunTime += Time.deltaTime;
+        }
+
         if (CurrentState == UIState.Playing && Input.GetKeyDown(KeyCode.Escape))
         {
             ShowPauseMenu();
@@ -292,13 +300,49 @@ public class UIManager : MonoBehaviour
 
     public void TriggerVictory()
     {
+        CaptureVictorySnapshot();
         SetState(UIState.Finished);
+    }
+
+    /// <summary>胜利面板应优先读此值（构建版在 OnEnable 时比 GetRunTime 更可靠）。</summary>
+    public float GetVictoryRunTime()
+    {
+        if (hasVictorySnapshot)
+        {
+            return lastVictoryRunTime;
+        }
+
+        return ReadCurrentRunTime();
     }
 
     public float GetRunTime()
     {
+        return GetVictoryRunTime();
+    }
+
+    public void ReportHudTime(float seconds)
+    {
+        if (CurrentState == UIState.Playing && seconds > gameplayRunTime)
+        {
+            gameplayRunTime = seconds;
+        }
+    }
+
+    private void CaptureVictorySnapshot()
+    {
         ResolveHudPanel();
-        return cachedHudPanel != null ? cachedHudPanel.GetFinalTime() : 0f;
+        lastVictoryRunTime = ReadCurrentRunTime();
+        hasVictorySnapshot = true;
+        Debug.Log("[UIManager] 胜利用时快照: " + Panel_HUD.FormatTime(lastVictoryRunTime)
+            + " (HUD=" + (cachedHudPanel != null ? Panel_HUD.FormatTime(cachedHudPanel.GetFinalTime()) : "无")
+            + ", gameplay=" + Panel_HUD.FormatTime(gameplayRunTime) + ")");
+    }
+
+    private float ReadCurrentRunTime()
+    {
+        ResolveHudPanel();
+        float hudTime = cachedHudPanel != null ? cachedHudPanel.GetFinalTime() : 0f;
+        return Mathf.Max(hudTime, gameplayRunTime);
     }
 
     public void TriggerGameOver()
@@ -464,6 +508,9 @@ public class UIManager : MonoBehaviour
 
     private void ResetHudTimer()
     {
+        gameplayRunTime = 0f;
+        lastVictoryRunTime = 0f;
+        hasVictorySnapshot = false;
         ResolveHudPanel();
         if (cachedHudPanel != null)
         {
@@ -548,16 +595,50 @@ public class UIManager : MonoBehaviour
             deadMenuPanel = FindGameObjectInRoots(roots, "DeathMenu");
         }
 
-        if (finishMenuPanel == null)
+        BindFinishMenuPanel(roots);
+        BindHudPanel(roots);
+        ResolvePlayerControl();
+    }
+
+    private void BindFinishMenuPanel(GameObject[] sceneRoots)
+    {
+        if (finishMenuPanel != null)
         {
-            finishMenuPanel = FindGameObjectInRoots(roots, "FinishMenu");
+            return;
         }
 
-        // 🔴 4. 新增：切场景时，自动去抓取名字叫 "HUDPanel" 的物体
-        if (hudPanel == null) hudPanel = FindGameObjectInRoots(roots, "HUDPanel");
+        LevelComplete levelComplete = GetComponentInChildren<LevelComplete>(true);
+        if (levelComplete != null)
+        {
+            finishMenuPanel = levelComplete.gameObject;
+            return;
+        }
+
+        finishMenuPanel = FindGameObjectInRoots(sceneRoots, "LevelComplete");
+        if (finishMenuPanel == null)
+        {
+            finishMenuPanel = FindGameObjectInRoots(sceneRoots, "FinishMenu");
+        }
+    }
+
+    private void BindHudPanel(GameObject[] sceneRoots)
+    {
+        if (hudPanel == null)
+        {
+            hudPanel = FindGameObjectInRoots(sceneRoots, "HUDPanel");
+        }
+
         cachedHudPanel = null;
         ResolveHudPanel();
-        ResolvePlayerControl();
+
+        if (cachedHudPanel == null)
+        {
+            cachedHudPanel = GetComponentInChildren<Panel_HUD>(true);
+            if (cachedHudPanel != null)
+            {
+                hudPanel = cachedHudPanel.gameObject;
+            }
+        }
     }
 
     private void ResolveHudPanel()
@@ -570,6 +651,15 @@ public class UIManager : MonoBehaviour
         if (hudPanel != null)
         {
             cachedHudPanel = hudPanel.GetComponent<Panel_HUD>();
+        }
+
+        if (cachedHudPanel == null)
+        {
+            cachedHudPanel = GetComponentInChildren<Panel_HUD>(true);
+            if (cachedHudPanel != null)
+            {
+                hudPanel = cachedHudPanel.gameObject;
+            }
         }
     }
 
