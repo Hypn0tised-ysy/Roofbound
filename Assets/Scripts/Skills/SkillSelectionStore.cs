@@ -42,6 +42,11 @@ public static class SkillSelectionStore
 
     public static void Save(SkillSelectionData data)
     {
+        Save(data, true);
+    }
+
+    public static void Save(SkillSelectionData data, bool notifyListeners)
+    {
         if (data == null)
         {
             return;
@@ -51,7 +56,10 @@ public static class SkillSelectionStore
         {
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(GetFilePath(), json);
-            SelectionChanged?.Invoke(data);
+            if (notifyListeners)
+            {
+                SelectionChanged?.Invoke(data);
+            }
         }
         catch (Exception ex)
         {
@@ -169,6 +177,88 @@ public static class SkillSelectionStore
         }
 
         return Enum.TryParse(value, true, out UtilitySkillId result) ? result : UtilitySkillId.None;
+    }
+
+    /// <summary>与 Ability 面板按钮 GameObject 名称一致（camelCase）。</summary>
+    public static string ToUiMovementName(MovementSkillId id)
+    {
+        switch (id)
+        {
+            case MovementSkillId.DoubleJump:
+                return "doubleJump";
+            case MovementSkillId.AirDash:
+                return "airDash";
+            case MovementSkillId.JetPack:
+                return "jetPack";
+            case MovementSkillId.Levitation:
+                return "levitation";
+            case MovementSkillId.Teleport:
+                return "teleport";
+            default:
+                return "None";
+        }
+    }
+
+    /// <summary>与 Ability 面板按钮 GameObject 名称一致（camelCase）。</summary>
+    public static string ToUiUtilityName(UtilitySkillId id)
+    {
+        switch (id)
+        {
+            case UtilitySkillId.SlowTime:
+                return "timeSlow";
+            case UtilitySkillId.FreezeTrucks:
+                return "freezeTrucks";
+            case UtilitySkillId.EpicMode:
+                return "epicMode";
+            default:
+                return "None";
+        }
+    }
+
+    public static bool IsMovementSelected(string savedSkillId, string slotSkillName)
+    {
+        if (string.IsNullOrEmpty(savedSkillId) || savedSkillId == "None")
+        {
+            return false;
+        }
+
+        return ResolveMovementId(savedSkillId) == ResolveMovementId(slotSkillName);
+    }
+
+    public static bool IsUtilitySelected(string savedSkillId, string slotSkillName)
+    {
+        if (string.IsNullOrEmpty(savedSkillId) || savedSkillId == "None")
+        {
+            return false;
+        }
+
+        return ResolveUtilityId(savedSkillId) == ResolveUtilityId(slotSkillName);
+    }
+
+    public static void SaveConfiguredSkills(
+        MovementSkillId movementSkill,
+        UtilitySkillId utilitySkill,
+        bool notifyListeners = true)
+    {
+        SkillSelectionData data = Load();
+        data.movementSkillId = ToUiMovementName(movementSkill);
+        data.utilitySkillId = ToUiUtilityName(utilitySkill);
+        Save(data, notifyListeners);
+    }
+
+    public static void RefreshAllAbilitySlots()
+    {
+        MovementSlotButton[] movementSlots = UnityEngine.Object.FindObjectsOfType<MovementSlotButton>(true);
+        for (int i = 0; i < movementSlots.Length; i++)
+        {
+            movementSlots[i].RefreshFromSavedSelection();
+        }
+
+        UtilitySlotButton[] utilitySlots = UnityEngine.Object.FindObjectsOfType<UtilitySlotButton>(true);
+        for (int i = 0; i < utilitySlots.Length; i++)
+        {
+            utilitySlots[i].RefreshFromSavedSelection();
+        }
     }
 
     private static string GetFilePath()

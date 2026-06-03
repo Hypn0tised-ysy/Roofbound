@@ -8,31 +8,42 @@ public class Panel_HUD : MonoBehaviour
 
     private float currentRunTime = 0f;
 
-    // 当面板被 UIManager 显示出来时（意味着游戏开始或恢复）
-    private void OnEnable()
+    public void ResetRunTimer()
     {
-        // 这里不需要写额外逻辑，因为重新开始关卡会重置场景
+        currentRunTime = 0f;
+        RefreshTimerText();
     }
 
     private void Update()
     {
-        // 累加真实时间。当游戏暂停(Time.timeScale=0)时，这个值会自动停止增加！
-        currentRunTime += Time.deltaTime;
-
-        // 格式化为 00:00.00
-        int minutes = Mathf.FloorToInt(currentRunTime / 60F);
-        int seconds = Mathf.FloorToInt(currentRunTime % 60F);
-        int milliseconds = Mathf.FloorToInt((currentRunTime * 100F) % 100F);
-
-        if (timerText != null)
+        // timeScale=0（暂停/结算）时不累加，与屏幕计时一致
+        if (Time.timeScale <= 0f)
         {
-            timerText.text = string.Format("{0:00}:{1:00}.{2:00}", minutes, seconds, milliseconds);
+            return;
         }
+
+        currentRunTime += Time.deltaTime;
+        RefreshTimerText();
     }
 
-    // 供结算面板 (FinishMenu) 调用，获取最终成绩
     public float GetFinalTime()
     {
         return currentRunTime;
+    }
+
+    public static string FormatTime(float seconds)
+    {
+        int minutes = Mathf.FloorToInt(seconds / 60F);
+        int secs = Mathf.FloorToInt(seconds % 60F);
+        int milliseconds = Mathf.FloorToInt((seconds * 100F) % 100F);
+        return string.Format("{0:00}:{1:00}.{2:00}", minutes, secs, milliseconds);
+    }
+
+    private void RefreshTimerText()
+    {
+        if (timerText != null)
+        {
+            timerText.text = FormatTime(currentRunTime);
+        }
     }
 }

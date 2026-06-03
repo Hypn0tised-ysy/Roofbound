@@ -3,7 +3,7 @@ using DG.Tweening; // 引入神级动效插件
 
 public class GameOver : MonoBehaviour
 {
-    [SerializeField] private bool restartOnAnyKey = true;
+    [SerializeField] private bool restartOnAnyKey = false;
     public Transform panelContent; 
 
     private bool isVisible;
@@ -65,7 +65,7 @@ public class GameOver : MonoBehaviour
         Debug.Log("UI -> 玩家放弃重试，返回主菜单！");
     }
 
-    // 跑酷游戏神级体验：按任意键光速重开
+    // 可选：仅键盘快捷键重开，避免鼠标点击按钮时被误判
     private void Update()
     {
         if (!restartOnAnyKey || !isVisible)
@@ -73,8 +73,7 @@ public class GameOver : MonoBehaviour
             return;
         }
 
-        // 如果按下了任意键，立刻重开！
-        if (Input.anyKeyDown)
+        if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
         {
             OnClickRestart();
         }

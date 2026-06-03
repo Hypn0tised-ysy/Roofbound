@@ -2,6 +2,11 @@ using UnityEngine;
 
 public class AbilityPanel : MonoBehaviour
 {
+    private void OnEnable()
+    {
+        SkillSelectionStore.RefreshAllAbilitySlots();
+    }
+
     public void ShowPanel()
     {
         gameObject.SetActive(true);

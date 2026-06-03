@@ -64,21 +64,19 @@ public class UtilitySlotButton : MonoBehaviour, IPointerClickHandler
         SkillSelectionData data = SkillSelectionStore.Load();
         string skillName = gameObject.name;
 
-        string current = data.utilitySkillId;
-        data.utilitySkillId = current == skillName ? NoneValue : skillName;
+        bool isCurrentlySelected = SkillSelectionStore.IsUtilitySelected(data.utilitySkillId, skillName);
+        data.utilitySkillId = isCurrentlySelected ? NoneValue : skillName;
 
         SkillSelectionStore.Save(data);
         RefreshAllSlots();
     }
 
-    private void RefreshFromSavedSelection()
+    public void RefreshFromSavedSelection()
     {
         SkillSelectionData data = SkillSelectionStore.Load();
         string skillName = gameObject.name;
 
-        bool isSelected = !string.IsNullOrEmpty(data.utilitySkillId)
-            && data.utilitySkillId != NoneValue
-            && data.utilitySkillId == skillName;
+        bool isSelected = SkillSelectionStore.IsUtilitySelected(data.utilitySkillId, skillName);
 
         SetBorderActive(isSelected);
     }

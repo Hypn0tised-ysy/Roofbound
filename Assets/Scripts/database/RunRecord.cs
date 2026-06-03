@@ -50,16 +50,16 @@ public class RunRecordDAO
 
             DatabaseManager.Instance.ExecuteNonQuery(query, parameters);
 
-            // ¸ù¾Ý»ñµÃµÄÐÇÐÇÔö¼Ó»ý·Ö£¨Ã¿¿ÅÐÇ10·Ö£©
+            // ï¿½ï¿½ï¿½Ý»ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó»ï¿½ï¿½Ö£ï¿½Ã¿ï¿½ï¿½ï¿½ï¿½10ï¿½Ö£ï¿½
             int pointsToAdd = record.Earned_Stars * 10;
             PlayerAccountDAO.AddPoints(record.Player_ID, pointsToAdd);
 
-            Debug.Log($"¼ÇÂ¼³É¼¨³É¹¦£¡»ñµÃ{record.Earned_Stars}ÐÇ£¬Ôö¼Ó{pointsToAdd}»ý·Ö");
+            Debug.Log($"ï¿½ï¿½Â¼ï¿½É¼ï¿½ï¿½É¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½{record.Earned_Stars}ï¿½Ç£ï¿½ï¿½ï¿½ï¿½ï¿½{pointsToAdd}ï¿½ï¿½ï¿½ï¿½");
             return true;
         }
         catch (Exception e)
         {
-            Debug.LogError($"Ìí¼Ó³É¼¨¼ÇÂ¼Ê§°Ü: {e.Message}");
+            Debug.LogError($"ï¿½ï¿½ï¿½Ó³É¼ï¿½ï¿½ï¿½Â¼Ê§ï¿½ï¿½: {e.Message}");
             return false;
         }
     }
@@ -89,7 +89,7 @@ public class RunRecordDAO
         }
         catch (Exception e)
         {
-            Debug.LogError($"²éÑ¯Íæ¼Ò³É¼¨Ê§°Ü: {e.Message}");
+            Debug.LogError($"ï¿½ï¿½Ñ¯ï¿½ï¿½Ò³É¼ï¿½Ê§ï¿½ï¿½: {e.Message}");
         }
         return records;
     }
@@ -100,6 +100,7 @@ public class RunRecordDAO
         {
             string query = @"SELECT * FROM RUN_RECORD 
                             WHERE Player_ID = @Player_ID AND Level_ID = @Level_ID 
+                              AND Completion_Time > 0.01
                             ORDER BY Completion_Time ASC LIMIT 1";
 
             SqliteParameter[] parameters = {
@@ -125,7 +126,7 @@ public class RunRecordDAO
         }
         catch (Exception e)
         {
-            Debug.LogError($"²éÑ¯×î¼Ñ³É¼¨Ê§°Ü: {e.Message}");
+            Debug.LogError($"ï¿½ï¿½Ñ¯ï¿½ï¿½Ñ³É¼ï¿½Ê§ï¿½ï¿½: {e.Message}");
         }
         return null;
     }
@@ -161,7 +162,7 @@ public class RunRecordDAO
         }
         catch (Exception e)
         {
-            Debug.LogError($"²éÑ¯ÅÅÐÐ°ñÊ§°Ü: {e.Message}");
+            Debug.LogError($"ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½Ð°ï¿½Ê§ï¿½ï¿½: {e.Message}");
         }
         return records;
     }
