@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections;
+using UnityEngine;
 using TMPro;
 using DG.Tweening;
 
@@ -12,27 +14,49 @@ public class LevelComplete : MonoBehaviour
 
     private void OnEnable()
     {
+        StartCoroutine(ApplyVictoryResultsWhenReady());
+    }
+
+    private IEnumerator ApplyVictoryResultsWhenReady()
+    {
+        yield return null;
+
+        UIManager ui = UIManager.Instance ?? FindObjectOfType<UIManager>();
+
         float finalTime = 0f;
         int levelIndex = 0;
 
-        if (UIManager.Instance != null)
+        if (ui != null)
         {
-            finalTime = UIManager.Instance.GetRunTime();
-            levelIndex = UIManager.Instance.SelectedLevelIndex;
+            finalTime = ui.GetVictoryRunTime();
+            levelIndex = ui.SelectedLevelIndex;
+        }
+        else
+        {
+            Debug.LogWarning("[LevelComplete] 未找到 UIManager，通关时间为 0。请从 main 场景启动。");
         }
 
-        float previousBest = -1f;
-        BestTimeService.TryGetBestTime(levelIndex, out previousBest);
-        bool hadPreviousBest = previousBest >= 0f;
+        ResolveTextReferences();
 
-        float bestTime = BestTimeService.SaveCompletionAndGetBest(levelIndex, finalTime);
-        bool isNewRecord = !hadPreviousBest || finalTime <= previousBest + 0.001f;
+        float bestTime = finalTime;
+        bool hadPreviousBest = false;
+        bool isNewRecord = true;
 
-        if (finalTimeText != null)
+        try
         {
-            finalTimeText.text = "Your Time: " + Panel_HUD.FormatTime(finalTime);
+            float previousBest = -1f;
+            BestTimeService.TryGetBestTime(levelIndex, out previousBest);
+            hadPreviousBest = previousBest >= 0f;
+            bestTime = BestTimeService.SaveCompletionAndGetBest(levelIndex, finalTime);
+            isNewRecord = !hadPreviousBest || finalTime <= previousBest + 0.001f;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[LevelComplete] 数据库不可用，仅显示本次用时。请更换 Plugins 中的 Mono.Data.Sqlite.dll。\n" + e);
+            bestTime = finalTime;
         }
 
+        string yourLine = "Your Time: " + Panel_HUD.FormatTime(finalTime);
         string bestLine = "Best Time: " + Panel_HUD.FormatTime(bestTime);
         if (isNewRecord && hadPreviousBest)
         {
@@ -43,6 +67,12 @@ public class LevelComplete : MonoBehaviour
             bestLine += "  (First Clear!)";
         }
 
+        if (finalTimeText != null)
+        {
+            finalTimeText.text = yourLine;
+            finalTimeText.ForceMeshUpdate();
+        }
+
         if (bestTimeText != null)
         {
             bestTimeText.text = bestLine;
@@ -50,7 +80,8 @@ public class LevelComplete : MonoBehaviour
         }
         else if (finalTimeText != null)
         {
-            finalTimeText.text += "\n" + bestLine;
+            finalTimeText.text = yourLine + "\n" + bestLine;
+            finalTimeText.ForceMeshUpdate();
         }
 
         if (panelContent != null)
@@ -58,6 +89,46 @@ public class LevelComplete : MonoBehaviour
             panelContent.DOKill();
             panelContent.localScale = Vector3.zero;
             panelContent.DOScale(Vector3.one, 0.5f).SetEase(Ease.OutBack).SetUpdate(true);
+        }
+    }
+
+    private void ResolveTextReferences()
+    {
+        if (finalTimeText == null)
+        {
+            TextMeshProUGUI[] texts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i].gameObject.name.IndexOf("Final", StringComparison.OrdinalIgnoreCase) >= 0
+                    || texts[i].gameObject.name.IndexOf("Your", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    finalTimeText = texts[i];
+                    break;
+                }
+            }
+
+            if (finalTimeText == null && texts.Length > 0)
+            {
+                finalTimeText = texts[0];
+            }
+        }
+
+        if (bestTimeText == null)
+        {
+            TextMeshProUGUI[] texts = GetComponentsInChildren<TextMeshProUGUI>(true);
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i] == finalTimeText)
+                {
+                    continue;
+                }
+
+                if (texts[i].gameObject.name.IndexOf("Best", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    bestTimeText = texts[i];
+                    break;
+                }
+            }
         }
     }
 
