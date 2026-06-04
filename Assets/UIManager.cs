@@ -26,7 +26,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject optionsPanel;
 
     [Header("关卡选择")]
-    [SerializeField] private string[] levelSceneNames = new[] { "Level01", "level1-2" };
+    [SerializeField] private string[] levelSceneNames = new[] { "Level01", "Level02","Level03","Level04" };
     [SerializeField] private int selectedLevelIndex = 0;
 
     [Header("关卡内面板")]
